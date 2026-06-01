@@ -206,6 +206,8 @@
 
       <!-- Navigazione laterale -->
       <nav class="shell-nav" role="navigation" aria-label="Menu principale di SafeHub Archivio">
+        <!-- .nav-items: corpo scrollabile — tutte le voci del menu -->
+        <div class="nav-items">
 
         <!-- CANTIERE -->
         <div class="nav-sezione" role="presentation">Cantiere</div>
@@ -321,6 +323,13 @@
                 :aria-current="$store.app.moduloAttivo === 'cestino' ? 'page' : null">
           <span aria-hidden="true">🗑</span> Cestino
         </button>
+
+        </div><!-- /nav-items -->
+
+        <!-- Firma autore — flex-shrink:0, sempre visibile in fondo alla sidebar -->
+        <div class="shell-firma" role="contentinfo">
+          by — Geom. Dogano Casella
+        </div>
 
       </nav>
 

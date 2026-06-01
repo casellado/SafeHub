@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION ogni volta che cambiano asset locali cachati (CLAUDE.md §Git).
  */
 
-const CACHE_VERSION = 'safehub-archivio-v9';   // bump: fix robusto aggiornamento SW (statechange + updatefound)
+const CACHE_VERSION = 'safehub-archivio-v10';  // bump: firma autore in sidebar
 
 const ASSET_LOCALI = [
   './',

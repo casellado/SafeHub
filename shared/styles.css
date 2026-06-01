@@ -31,6 +31,9 @@
      Derivato dalla stessa famiglia cromatica: nessun colore esterno alla palette. */
   --c-nav-bg:        #f1f5f9;
 
+  /* Firma d'autore — blu cobalto intenso, distinto dal primary (#1d4ed8) */
+  --c-firma:         #0047AB;
+
   /* Scadenze: critica non si spegne mai (M1-Fondazione §5.5) */
   --c-critica:          #dc2626;
   --c-alta:             #d97706;
@@ -97,11 +100,32 @@ body {
   left: 0;
   width: var(--nav-width);
   height: calc(100vh - var(--header-height));
-  background: var(--c-nav-bg);        /* leggermente più scura di --c-bg per distinguerla dal contenuto */
+  background: var(--c-nav-bg);
   border-right: 1px solid var(--c-border);
+  /* Flex column: .nav-items scorre, .shell-firma resta ancorata in fondo */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Corpo scrollabile della nav (tutte le voci di menu) */
+.nav-items {
+  flex: 1;
   overflow-y: auto;
-  overscroll-behavior: contain;       /* lo scroll della nav non "sfonda" mai sul body */
-  padding: 0.25rem 0 1rem;
+  overscroll-behavior: contain;
+  padding: 0.25rem 0 0.5rem;
+  min-height: 0;   /* essenziale: senza, flex-1 non comprime e lo scroll non scatta */
+}
+
+/* Firma autore — ancorata in fondo alla nav, sempre visibile */
+.shell-firma {
+  flex-shrink: 0;
+  padding: 0.5rem 0.75rem 0.625rem;
+  font-size: var(--text-xs);
+  color: var(--c-firma);
+  border-top: 1px solid var(--c-border);
+  text-align: center;
+  user-select: text;   /* testo selezionabile */
+  letter-spacing: 0.01em;
 }
 
 .shell-main {
