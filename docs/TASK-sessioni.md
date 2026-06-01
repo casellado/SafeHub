@@ -63,6 +63,21 @@ Per sviluppare da un punto: `git checkout -b nome-branch <tag>`.
 - **Design:** `@docs/M6-Motore-DOCX.md`
 - Stack: docxtemplater core + `{@rawXml}` + `docxtemplater-image-module-free` (tutto MIT)
 - Dipende da: M2 (logo/codici) ✅
+- **Template Word UNICO** per tutti i documenti Flusso B — per ogni tipo cambia solo `generaCorpoHtml<Tipo>()`
+- **⚠ IMPORTANTE:** quando si costruisce M6 e i documenti Flusso B, il PO fornirà il testo/layout reale di ciascun modulo ufficiale, documento per documento. I documenti generati devono riprodurre i modelli veri del PO, NON fac-simili inventati.
+
+#### Perimetro Operatività — vista trasversale AI M26 (definito dal PO)
+I documenti del 'lavoro vivo' su cui l'AI assisterà. Restano archiviati nei rispettivi flussi, questa è la lista di riferimento per M6 e M26:
+
+| # | Documento | Flusso | Modulo | Note |
+|---|---|---|---|---|
+| 1 | Verbale di sopralluogo | Flusso A | M7-M10 | Arriva da SafeCant |
+| 2 | Verbale riunione coordinamento | Flusso B | M11 (pilota) | Il PO lo produce |
+| 3 | Verifica idoneità POS | Flusso B | M12 | Il PO la produce |
+| 4 | Verifica ITP | Flusso B | M12 (sottotipo) | Il PO la produce |
+| 5 | Proposta sospensione CSE | Flusso B | M13 | Il PO la produce |
+| 6 | Notifica preliminare | Flusso C | M17 | Il PO la prepara, archiviata in C |
+| 7 | Disposizione/sospensione RL | Flusso C | M19 | La emette il RL, il PO la riceve |
 
 ### Opzione C — Flusso C (documenti ricevuti)
 - M17 pilota (Notifica Preliminare): upload PDF + metadati, nessun motore documenti
@@ -102,4 +117,4 @@ Per sviluppare da un punto: `git checkout -b nome-branch <tag>`.
 
 ---
 
-*Aggiornato al 01/06/2026 — v0.5.0 taggato, M4 completo.*
+*Aggiornato al 01/06/2026 — v0.5.0 taggato, M4 completo. Perimetro Operatività definito dal PO.*
