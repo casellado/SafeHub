@@ -76,7 +76,7 @@ schema v2.0. M3 ne gestisce la testa; M4 gestisce le collezioni interne. Campi (
 - **id** (primario, opaco — es. CZ399), **denominazione interna** (etichetta leggibile per il PO)
 - **committente** (riferito genericamente, riservatezza), struttura territoriale
 - **CUP, CIG**, estremi contratto, importi, date (consegna, ultimazione)
-- **ruoli istituzionali**: FK a `persone_committente` (RUP, RL, CSE titolare/delegato, DL, DO,
+- **ruoli istituzionali**: FK a `persone_committente` (RUP, RL, CSE titolare, DL, Direttore Operativo,
   ispettori). M3 li imposta scegliendo tra le persone committente (che si inseriscono in M4).
 - **stato**: attivo / sospeso / concluso-archiviato
 

@@ -171,7 +171,7 @@ const CANTIERI_SERVICE = (() => {
         rupId:               null,
         dlId:                null,
         cseTitolareId:       null,
-        cseDelegatoId:       null,
+        direttoreOperativoId: null,
         ispettoreCantiereId: null,
         responsabileLavoriId:null,
       },

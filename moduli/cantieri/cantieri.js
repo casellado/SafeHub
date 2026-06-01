@@ -708,7 +708,7 @@ const _TEMPLATE_SCHEDA = `
             ['rupId','RUP — Resp. Unico del Procedimento'],
             ['dlId','DL — Direttore dei Lavori'],
             ['cseTitolareId','CSE Titolare'],
-            ['cseDelegatoId','CSE Delegato'],
+            ['direttoreOperativoId','Direttore Operativo'],
             ['responsabileLavoriId','RL — Responsabile dei Lavori'],
             ['ispettoreCantiereId','Ispettore di Cantiere']
           ]" :key="chiave">

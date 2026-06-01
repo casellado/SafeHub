@@ -94,7 +94,7 @@ Il contesto di lavoro: in Archivio si opera sempre "dentro" un lotto selezionato
 ### 2.1 Anagrafica del Cantiere
 Dati del lotto (schema v2.0 §3): identificativo, committente, struttura territoriale, CUP, CIG,
 progressive, contratto, importi, date, e i **ruoli istituzionali** (FK a persone_committente:
-RUP, DL, CSE titolare/delegato, RL, ispettore, responsabile lavori). È l'ID primario di tutto.
+RUP, DL, CSE titolare, Direttore Operativo, RL, ispettore, responsabile lavori). È l'ID primario di tutto.
 
 ### 2.2 Registro PSC
 Registro cumulativo degli aggiornamenti del Piano di Sicurezza e Coordinamento nel tempo (art.92
@@ -110,7 +110,7 @@ impresa, mai genericamente al cantiere.
 
 ### 3.1 Personale della Sicurezza
 Le persone della stazione appaltante e i tecnici incaricati: **RUP, RL (Responsabile Lavori), CSE
-titolare, CSE delegato, DL (Direttore Lavori), DO (Direttore Operativo), ispettori di cantiere**.
+titolare, DL (Direttore Lavori), Direttore Operativo, ispettori di cantiere**. (Il CSE è incarico personale non delegabile, art.89 lett.f / art.92 D.Lgs.81/08.)
 → collezione `persone_committente`, campo `ruolo`.
 **Nota del PO:** il "collaboratore del CSE" e l'"ispettore di cantiere" NON sono figure distinte —
 sono **ispettori di cantiere a cui viene affidato il compito** (es. il sopralluogo). Una sola figura,

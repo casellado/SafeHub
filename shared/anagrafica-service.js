@@ -158,7 +158,7 @@ const ANAGRAFICA_SERVICE = (() => {
     { valore: 'RUP',               etichetta: 'RUP — Responsabile Unico del Procedimento' },
     { valore: 'DL',                etichetta: 'DL — Direttore dei Lavori' },
     { valore: 'CSE_TITOLARE',      etichetta: 'CSE Titolare' },
-    { valore: 'CSE_DELEGATO',      etichetta: 'CSE Delegato' },
+    { valore: 'DIRETTORE_OPERATIVO', etichetta: 'Direttore Operativo' },
     { valore: 'RL',                etichetta: 'RL — Responsabile dei Lavori' },
     { valore: 'ISPETTORE_CANTIERE',etichetta: 'Ispettore di Cantiere' },
     { valore: 'ALTRO',             etichetta: 'Altro' },

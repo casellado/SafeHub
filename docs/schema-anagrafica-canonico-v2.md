@@ -112,7 +112,7 @@ subordinati sono orfani → il sistema avvisa (non cancella in automatico: P3).
     "rupId": "pc_…|null",
     "dlId": "pc_…|null",
     "cseTitolareId": "pc_…|null",
-    "cseDelegatoId": "pc_…|null",
+    "direttoreOperativoId": "pc_…|null",
     "ispettoreCantiereId": "pc_…|null",
     "responsabileLavoriId": "pc_…|null"
   },
@@ -315,7 +315,7 @@ subordinati sono orfani → il sistema avvisa (non cancella in automatico: P3).
   "lotto_id": "CZ399",                       // ⭐ (era projectId)
   "nome": "string", "cognome": "string",
   "qualifica": "string",
-  "ruolo": "RUP | DL | CSE_TITOLARE | CSE_DELEGATO | RL | ISPETTORE_CANTIERE | …",
+  "ruolo": "RUP | DL | CSE_TITOLARE | DIRETTORE_OPERATIVO | RL | ISPETTORE_CANTIERE | …",
   "matricola": "string",                     // (era matricolaAnas — generalizzato)
   "strutturaTerritoriale": "string",
   "email": "string", "telefono": "string",
