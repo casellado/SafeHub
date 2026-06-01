@@ -245,6 +245,13 @@ const ANAGRAFICA_SERVICE = (() => {
       const cantHandle = await root.getDirectoryHandle(cantiereId);
       const anagDir    = await cantHandle.getDirectoryHandle('15_Anagrafica');
       _dati = await FILESYSTEM.leggiJson(anagDir, `anagrafica_${cantiereId}.json`);
+      // Migrazione soft: rinomina cseDelegatoId → direttoreOperativoId se presente
+      // nei file creati prima della correzione normativa del 01/06/2026.
+      const ri = _dati?.lotto?.ruoli_istituzionali;
+      if (ri && 'cseDelegatoId' in ri) {
+        if (!('direttoreOperativoId' in ri)) ri.direttoreOperativoId = ri.cseDelegatoId;
+        delete ri.cseDelegatoId;
+      }
       _cantiereId = cantiereId;
       await _aggiornaCache();
     } catch (err) {

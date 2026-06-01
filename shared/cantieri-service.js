@@ -46,14 +46,35 @@ const CANTIERI_SERVICE = (() => {
 
   /**
    * Legge il file anagrafica del cantiere.
+   * Applica la migrazione soft dei campi rinominati (retrocompatibilità).
    * @param {string} id
    * @returns {Promise<Object>} - intero file anagrafica (lotto + collezioni)
    */
   const leggiAnagrafica = async (id) => {
-    const root      = FILESYSTEM.getHandleAttivo();
-    const cantDir   = await root.getDirectoryHandle(id);
-    const anagDir   = await cantDir.getDirectoryHandle('15_Anagrafica');
-    return FILESYSTEM.leggiJson(anagDir, `anagrafica_${id}.json`);
+    const root    = FILESYSTEM.getHandleAttivo();
+    const cantDir = await root.getDirectoryHandle(id);
+    const anagDir = await cantDir.getDirectoryHandle('15_Anagrafica');
+    const dati    = await FILESYSTEM.leggiJson(anagDir, `anagrafica_${id}.json`);
+    _migraLotto(dati);
+    return dati;
+  };
+
+  /**
+   * Migrazione soft dei campi rinominati nel nodo lotto.ruoli_istituzionali.
+   * Non distruttiva: se esiste il vecchio campo e manca il nuovo, copia il valore
+   * sul nuovo nome e rimuove il vecchio. Al prossimo salvataggio il file si autocorregge.
+   *
+   * Migrazioni attive:
+   *  - cseDelegatoId → direttoreOperativoId  (rinomina normativa 01/06/2026)
+   */
+  const _migraLotto = (dati) => {
+    const ri = dati?.lotto?.ruoli_istituzionali;
+    if (!ri) return;
+    // cseDelegatoId → direttoreOperativoId
+    if ('cseDelegatoId' in ri && !('direttoreOperativoId' in ri)) {
+      ri.direttoreOperativoId = ri.cseDelegatoId;
+    }
+    delete ri.cseDelegatoId;
   };
 
   /**
