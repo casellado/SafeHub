@@ -141,6 +141,15 @@ const ANAGRAFICA_SERVICE = (() => {
     { valore: 'ALTRO',          etichetta: 'Altro (testo libero)',            ponteggio: false },
   ];
 
+  // ================================================================
+  // TIPI NOLO — PUNTO UNICO.
+  // tipoNolo determina i campi visibili e i documenti attesi.
+  // ================================================================
+  const TIPI_NOLO = [
+    { valore: 'FREDDO', etichetta: 'Nolo a freddo — solo mezzo, senza operatore (art.72)' },
+    { valore: 'CALDO',  etichetta: 'Nolo a caldo — mezzo + operatore della ditta noleggiante' },
+  ];
+
   // Tipi di verifica periodica (dropdown per mezzi)
   const TIPI_VERIFICA_MEZZO = [
     { valore: 'PRIMA_VERIFICA',          etichetta: 'Prima verifica periodica (INAIL)' },
@@ -480,6 +489,89 @@ const ANAGRAFICA_SERVICE = (() => {
   };
 
   // ================================================================
+  // Calcolo scadenze e conformità — Noli
+  // ================================================================
+
+  /** Scadenza contratto di nolo (dataFine). */
+  const calcolaScadenzeNolo = (nolo) => {
+    if (!nolo.dataFine) return [];
+    const soglie = IMPOSTAZIONI_SERVICE.soglie();
+    const gg     = UTILS.giorniAllaScadenza(nolo.dataFine);
+    const soglia = soglie.nolo_fine_contratto ?? soglie.default;
+    const stato  = gg < 0 ? 'scaduto' : gg < soglia.giorni ? 'in_scadenza' : 'valido';
+    if (stato === 'valido') return [];
+    return [{ tipo: 'data_fine', label: 'Contratto di nolo', scadenza: nolo.dataFine, giorni: gg, stato, criticita: 'alta' }];
+  };
+
+  /**
+   * Conformità nolo: check attestazione buono stato (FREDDO obbligatoria)
+   * e operatore mancante (CALDO). Nessun alert rosso critico: la criticità
+   * vera è sui lavoratori/mezzi collegati, non sul nolo in sé.
+   */
+  const calcolaConformitaNolo = (nolo) => {
+    if (!nolo?.tipoNolo) return { stato: 'grigio', critico: false, scadenze: [], problemi: [], note: [] };
+
+    const scadenze = calcolaScadenzeNolo(nolo);
+    const problemi = [];
+    const note     = [];
+
+    if (nolo.tipoNolo === 'FREDDO' && !nolo.attestazioneBuonoStato?.presente) {
+      problemi.push({ tipo: 'attestazione', label: 'Attestazione buono stato (art.72)', livello: 'giallo', motivo: 'assente' });
+    }
+    if (nolo.tipoNolo === 'CALDO' && !nolo.operatore?.nome && !nolo.operatore?.lavoratore_id) {
+      problemi.push({ tipo: 'operatore', label: 'Operatore', livello: 'giallo', motivo: 'non_specificato' });
+    }
+    if (nolo.tipoNolo === 'CALDO' && nolo.operatore?.superaSoglieSubappalto) {
+      note.push('Supera soglie subappalto: verificare POS e idoneità dell\'impresa noleggiante.');
+    }
+
+    const hasRosso  = scadenze.some(s => s.stato === 'scaduto');
+    const hasGiallo = scadenze.some(s => s.stato === 'in_scadenza') || problemi.some(p => p.livello === 'giallo');
+    return { stato: hasRosso ? 'rosso' : hasGiallo ? 'giallo' : 'verde', critico: false, scadenze, problemi, note };
+  };
+
+  /**
+   * Sincronizza il campo nolo_id su mezzo e/o attrezzatura collegata.
+   * Chiamata da noli.js DOPO il salvataggio base (single responsibility).
+   * Guida-non-blocca: errori interni non propagano al chiamante.
+   *
+   * @param {string|null} noloId   - id del nolo (null quando il nolo viene cestinato)
+   * @param {string|null} mz_new   - nuovo mezzo_id del nolo
+   * @param {string|null} mz_old   - vecchio mezzo_id (prima del salvataggio)
+   * @param {string|null} att_new  - nuovo attrezzatura_id
+   * @param {string|null} att_old  - vecchio attrezzatura_id
+   */
+  const collegaNolo = async (noloId, mz_new, mz_old, att_new, att_old) => {
+    // Aggiorna mezzi
+    const mezziDaAggiornare = [];
+    if (mz_old && mz_old !== mz_new) {
+      const m = getEntita('mezzi', mz_old);
+      if (m) mezziDaAggiornare.push({ id: mz_old, nolo_id: null });
+    }
+    if (mz_new) {
+      const m = getEntita('mezzi', mz_new);
+      if (m && !m._cestino) mezziDaAggiornare.push({ id: mz_new, nolo_id: noloId });
+    }
+    for (const upd of mezziDaAggiornare) {
+      await aggiorna('mezzi', upd.id, { nolo_id: upd.nolo_id }).catch(() => {});
+    }
+
+    // Aggiorna attrezzature
+    const attDaAggiornare = [];
+    if (att_old && att_old !== att_new) {
+      const a = getEntita('attrezzature', att_old);
+      if (a) attDaAggiornare.push({ id: att_old, nolo_id: null });
+    }
+    if (att_new) {
+      const a = getEntita('attrezzature', att_new);
+      if (a && !a._cestino) attDaAggiornare.push({ id: att_new, nolo_id: noloId });
+    }
+    for (const upd of attDaAggiornare) {
+      await aggiorna('attrezzature', upd.id, { nolo_id: upd.nolo_id }).catch(() => {});
+    }
+  };
+
+  // ================================================================
   // Calcolo scadenze e conformità — Mezzi
   // ================================================================
 
@@ -593,6 +685,20 @@ const ANAGRAFICA_SERVICE = (() => {
       ccnlApplicato: null, organicoMedioAnnuo: null,
       documenti: [],
     };
+    if (nomeCollezione === 'noli') return {
+      tipoNolo: '',
+      oggetto: '',
+      impresa_utilizzatrice_id: null,
+      impresa_noleggiante_id: null,
+      noleggiante_nome: '',
+      mezzo_id: null,
+      attrezzatura_id: null,
+      attestazioneBuonoStato: { presente: false, data: null, filename: null, base64: null },
+      operatore: { nome: null, lavoratore_id: null, superaSoglieSubappalto: false },
+      dataInizio: null,
+      dataFine: null,
+      contrattoRiferimento: null,
+    };
     if (nomeCollezione === 'mezzi') return {
       tipologia: '', marca: '', modello: '',
       matricola: '', numeroSerie: '', anno: null,
@@ -636,6 +742,7 @@ const ANAGRAFICA_SERVICE = (() => {
     aggiungi, aggiorna, cestina, ripristina, eliminaDefinitivamente,
     calcolaConformita, calcolaScadenzeImpresa,
     calcolaConformitaLavoratore, calcolaScadenzeLavoratore,
+    calcolaConformitaNolo, calcolaScadenzeNolo, collegaNolo,
     calcolaConformitaMezzo, calcolaScadenzeMezzo,
     calcolaConformitaAttrezzatura, calcolaScadenzeAttrezzatura,
     creaEntitaVuota,
@@ -645,6 +752,7 @@ const ANAGRAFICA_SERVICE = (() => {
     CONFORMITA_MATRIX,
     LABEL_DOC,
     TIPI_ABILITAZIONE_OPERATORE,
+    TIPI_NOLO,
     TIPI_MEZZO, TIPOLOGIE_ATTREZZATURA,
     TIPI_VERIFICA_MEZZO, TIPI_VERIFICA_ATT, TIPI_DOC_SPECIFICO_ATT,
   };

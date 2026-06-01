@@ -55,6 +55,7 @@ const IMPOSTAZIONI_SERVICE = (() => {
       verifica_periodica_mezzo:            { giorni: 60, criticita: 'critica' },
       verifica_mezzo_non_sollevamento:     { giorni: 30, criticita: 'normale' },
       verifica_attrezzatura:               { giorni: 30, criticita: 'normale' },
+      nolo_fine_contratto:                 { giorni: 30, criticita: 'alta'    },
       idoneita_sanitaria:                  { giorni: 45, criticita: 'critica' },
       pimus_ponteggi:                      { giorni: 60, criticita: 'critica' },
       patente_crediti:                     { giorni: 45, criticita: 'critica' },

@@ -16,6 +16,7 @@ const ETICHETTE_SOGLIE = {
   verifica_periodica_mezzo:            'Verifica periodica mezzo sollevamento',
   verifica_mezzo_non_sollevamento:     'Verifica periodica mezzo (non sollevamento)',
   verifica_attrezzatura:               'Verifica ordinaria attrezzatura',
+  nolo_fine_contratto:                 'Scadenza contratto di nolo',
   idoneita_sanitaria:       'Idoneità sanitaria lavoratore',
   pimus_ponteggi:           'PiMUS / autorizzazione ponteggi',
   patente_crediti:          'Patente a crediti impresa',
