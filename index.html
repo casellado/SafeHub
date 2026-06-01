@@ -45,6 +45,7 @@
   <script src="moduli/anagrafica/lavoratori.js"></script>
   <script src="moduli/anagrafica/mezzi-attrezzature.js"></script>
   <script src="moduli/anagrafica/noli.js"></script>
+  <script src="moduli/anagrafica/persone.js"></script>
 </head>
 
 <body x-data x-cloak>
@@ -232,7 +233,7 @@
         <button class="nav-voce" @click="navigaA('personale-sicurezza')"
                 :class="{'attiva': $store.app.moduloAttivo === 'personale-sicurezza'}"
                 :aria-current="$store.app.moduloAttivo === 'personale-sicurezza' ? 'page' : null">
-          <span aria-hidden="true">👤</span> Personale Sicurezza
+          <span aria-hidden="true">👤</span> Pers. Committente
         </button>
         <button class="nav-voce" @click="navigaA('imprese')"
                 :class="{'attiva': $store.app.moduloAttivo === 'imprese'}"

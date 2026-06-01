@@ -158,13 +158,14 @@ function Cruscotto() {
 
 function SchedaCantiere() {
   return {
-    id:           null,
-    lotto:        {},
-    caricamento:  true,
-    salvando:     false,
-    archiviando:  false,
-    feedbackMsg:  null,
-    confermaArchivia: false,  // mostra pannello conferma archiviazione
+    id:                null,
+    lotto:             {},
+    personeCommittente: [],   // M4 F5: alimenta i <select> ruoli istituzionali
+    caricamento:       true,
+    salvando:          false,
+    archiviando:       false,
+    feedbackMsg:       null,
+    confermaArchivia:  false,
 
     init() {
       this.id = Alpine.store('cantiere').id;
@@ -190,6 +191,9 @@ function SchedaCantiere() {
         this.lotto = JSON.parse(JSON.stringify(anagrafica.lotto));
         // Garantisce che i sotto-oggetti esistano anche su anagrafica più vecchie
         this.lotto.ruoli_istituzionali ??= {};
+        // M4 F5: leggo persone_committente dallo stesso file già aperto (zero overhead)
+        // per alimentare i <select> dei ruoli istituzionali sotto.
+        this.personeCommittente = (anagrafica.persone_committente ?? []).filter(p => !p._cestino);
         this.lotto.csp                 ??= {};
       } catch (err) {
         ERRORI.gestisciErrore('scheda-cantiere/carica', err);
@@ -688,14 +692,20 @@ const _TEMPLATE_SCHEDA = `
         <span class="text-slate-400 text-xs">▾</span>
       </summary>
       <div class="p-4 space-y-3">
-        <p class="text-xs text-slate-400 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
-          ℹ Questi campi saranno selezionabili da
-          <strong>Anagrafica → Personale della Sicurezza (M4)</strong>.
-          Per ora inserisci il nome come testo libero — il dato è compatibile.
+        <!-- M4 F5: i ruoli sono ora <select> su persone_committente.
+             Retrocompatibilità: valori legacy non-pc_ mostrati come opzione disabilitata.
+             Persona cestinata: "(persona non disponibile)". Guida-non-blocca sempre. -->
+
+        <!-- Nota unica (mostrata una volta, non per ogni campo) -->
+        <p x-show="personeCommittente.length === 0"
+           class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2">
+          ℹ Nessuna persona committente inserita. Aggiungile in
+          <strong>Anagrafiche → Pers. Committente</strong> per abilitare la selezione.
         </p>
+
         <div class="grid gap-4 sm:grid-cols-2">
           <template x-for="[chiave, etich] in [
-            ['rupId','RUP — Responsabile Unico del Procedimento'],
+            ['rupId','RUP — Resp. Unico del Procedimento'],
             ['dlId','DL — Direttore dei Lavori'],
             ['cseTitolareId','CSE Titolare'],
             ['cseDelegatoId','CSE Delegato'],
@@ -706,12 +716,33 @@ const _TEMPLATE_SCHEDA = `
               <label :for="'ruolo-' + chiave"
                      class="block text-xs font-medium text-slate-500 mb-1 uppercase tracking-wide"
                      x-text="etich"></label>
-              <input :id="'ruolo-' + chiave" type="text"
-                     :value="lotto.ruoli_istituzionali?.[chiave] ?? ''"
-                     @input="(lotto.ruoli_istituzionali ??= {})[chiave] = $event.target.value"
-                     placeholder="Nome — da M4"
-                     class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm
-                            focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <select :id="'ruolo-' + chiave"
+                      :value="lotto.ruoli_istituzionali?.[chiave] ?? ''"
+                      @change="(lotto.ruoli_istituzionali ??= {})[chiave] = $event.target.value || null; lotto={...lotto}"
+                      class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm
+                             focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">— Non assegnato —</option>
+                <!-- Valore legacy (testo libero, non pc_): conservato, non cancellato -->
+                <template x-if="lotto.ruoli_istituzionali?.[chiave] && !lotto.ruoli_istituzionali[chiave]?.startsWith('pc_')">
+                  <option disabled :value="lotto.ruoli_istituzionali[chiave]"
+                          x-text="'(valore precedente: ' + lotto.ruoli_istituzionali[chiave] + ')'"></option>
+                </template>
+                <!-- Persona cestinata: FK valido ma non in lista -->
+                <template x-if="lotto.ruoli_istituzionali?.[chiave]?.startsWith('pc_') && !personeCommittente.some(p => p.id === lotto.ruoli_istituzionali[chiave])">
+                  <option disabled :value="lotto.ruoli_istituzionali[chiave]">(persona non disponibile)</option>
+                </template>
+                <!-- Opzioni persone committente -->
+                <template x-for="p in personeCommittente" :key="p.id">
+                  <option :value="p.id"
+                          x-text="[p.cognome,p.nome].filter(Boolean).join(' ') + (p.qualifica ? ' — ' + p.qualifica : '')">
+                  </option>
+                </template>
+              </select>
+              <!-- Invito a sostituire valori legacy -->
+              <p x-show="lotto.ruoli_istituzionali?.[chiave] && !lotto.ruoli_istituzionali[chiave]?.startsWith('pc_')"
+                 class="mt-0.5 text-xs text-slate-400">
+                ↑ Seleziona una persona dall'elenco per aggiornare il valore.
+              </p>
             </div>
           </template>
         </div>

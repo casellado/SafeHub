@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION ogni volta che cambiano asset locali cachati (CLAUDE.md §Git).
  */
 
-const CACHE_VERSION = 'safehub-archivio-v15';  // bump M4-F4: noli
+const CACHE_VERSION = 'safehub-archivio-v16';  // bump M4-F5: persone + aggancio M3
 
 const ASSET_LOCALI = [
   './',
@@ -33,6 +33,7 @@ const ASSET_LOCALI = [
   './moduli/anagrafica/lavoratori.js',
   './moduli/anagrafica/mezzi-attrezzature.js',
   './moduli/anagrafica/noli.js',
+  './moduli/anagrafica/persone.js',
   './assets/icon-192.png',
   './assets/icon-512.png',
 ];

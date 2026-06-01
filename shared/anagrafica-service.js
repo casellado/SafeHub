@@ -150,6 +150,33 @@ const ANAGRAFICA_SERVICE = (() => {
     { valore: 'CALDO',  etichetta: 'Nolo a caldo — mezzo + operatore della ditta noleggiante' },
   ];
 
+  // ================================================================
+  // RUOLI PERSONE COMMITTENTE — PUNTO UNICO.
+  // Allineato a lotto.ruoli_istituzionali per l'aggancio M3.
+  // ================================================================
+  const RUOLI_PERSONE_COMMITTENTE = [
+    { valore: 'RUP',               etichetta: 'RUP — Responsabile Unico del Procedimento' },
+    { valore: 'DL',                etichetta: 'DL — Direttore dei Lavori' },
+    { valore: 'CSE_TITOLARE',      etichetta: 'CSE Titolare' },
+    { valore: 'CSE_DELEGATO',      etichetta: 'CSE Delegato' },
+    { valore: 'RL',                etichetta: 'RL — Responsabile dei Lavori' },
+    { valore: 'ISPETTORE_CANTIERE',etichetta: 'Ispettore di Cantiere' },
+    { valore: 'ALTRO',             etichetta: 'Altro' },
+  ];
+
+  // ================================================================
+  // TIPI ENTE TERZI — PUNTO UNICO.
+  // ================================================================
+  const TIPI_ENTE_TERZI = [
+    { valore: 'SPRESAL',    etichetta: 'SPRESAL — Servizio Prevenzione e Sicurezza' },
+    { valore: 'ASL',        etichetta: 'ASL' },
+    { valore: 'INL',        etichetta: 'INL — Ispettorato Nazionale del Lavoro' },
+    { valore: 'VVF',        etichetta: 'VVF — Vigili del Fuoco' },
+    { valore: 'PROVINCIA',  etichetta: 'Provincia / Ente gestore sottoservizi' },
+    { valore: 'CONSULENTE', etichetta: 'Consulente esterno' },
+    { valore: 'ALTRO',      etichetta: 'Altro ente' },
+  ];
+
   // Tipi di verifica periodica (dropdown per mezzi)
   const TIPI_VERIFICA_MEZZO = [
     { valore: 'PRIMA_VERIFICA',          etichetta: 'Prima verifica periodica (INAIL)' },
@@ -685,6 +712,16 @@ const ANAGRAFICA_SERVICE = (() => {
       ccnlApplicato: null, organicoMedioAnnuo: null,
       documenti: [],
     };
+    if (nomeCollezione === 'persone_committente') return {
+      nome: '', cognome: '', qualifica: '', ruolo: '',
+      matricola: '', strutturaTerritoriale: '',
+      email: '', telefono: '',
+    };
+    if (nomeCollezione === 'persone_terzi') return {
+      nome: '', cognome: '', qualifica: '',
+      tipoEnte: '', ente: '',
+      email: '', telefono: '',
+    };
     if (nomeCollezione === 'noli') return {
       tipoNolo: '',
       oggetto: '',
@@ -753,6 +790,7 @@ const ANAGRAFICA_SERVICE = (() => {
     LABEL_DOC,
     TIPI_ABILITAZIONE_OPERATORE,
     TIPI_NOLO,
+    RUOLI_PERSONE_COMMITTENTE, TIPI_ENTE_TERZI,
     TIPI_MEZZO, TIPOLOGIE_ATTREZZATURA,
     TIPI_VERIFICA_MEZZO, TIPI_VERIFICA_ATT, TIPI_DOC_SPECIFICO_ATT,
   };
