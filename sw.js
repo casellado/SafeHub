@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION ogni volta che cambiano asset locali cachati (CLAUDE.md §Git).
  */
 
-const CACHE_VERSION = 'safehub-archivio-v11';  // bump M4-F2: lavoratori
+const CACHE_VERSION = 'safehub-archivio-v12';  // bump: SW disattivato su localhost (dev/prod split)
 
 const ASSET_LOCALI = [
   './',

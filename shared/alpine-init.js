@@ -71,64 +71,82 @@ document.addEventListener('alpine:init', () => {
   avviaApp();
 });
 
-// ---- Registrazione Service Worker (PWA installabile) ----
+// ---- Service Worker: DEV vs PRODUZIONE ----------------------------------------
+//
+// Il SW è attivo SOLO in produzione (GitHub Pages / HTTPS).
+// Su localhost è deliberatamente DISATTIVATO: ogni F5 serve i file freschi
+// dalla rete senza mai richiedere "Clear site data" o operazioni in DevTools.
+//
+// Causa dei problemi storici:
+//  • In sviluppo il SW cachava i file (cache-first) → F5 serviva sempre la
+//    versione vecchia, rendendo ogni modifica invisibile senza pulizia manuale.
+//  • 'alpine-init.js' è dentro la cache SW → il fix al SW stesso arrivava
+//    troppo tardi (era servito dalla vecchia cache).
+//  • Porta variabile di avvia.bat: il SW registrato su :8080 non si aggiornava
+//    se il server ripartiva su :8081, causando "unknown error when fetching".
+//
+// Soluzione: divisione netta dev / prod. Su localhost zero SW, zero problemi.
+// In produzione il SW rimane attivo per velocità e offline.
+// --------------------------------------------------------------------------
+
 if ('serviceWorker' in navigator) {
-  // hadController: true se al caricamento c'era già un SW in controllo.
-  // Serve a distinguere "primo install" (non ricaricare) da "aggiornamento" (ricaricare).
-  const hadController = !!navigator.serviceWorker.controller;
 
-  // Flag anti-doppio-reload: statechange E controllerchange possono entrambi scattare
-  // per lo stesso aggiornamento — un solo reload basta.
-  let _ricaricaInCorso = false;
+  const IS_DEV = ['localhost', '127.0.0.1', '::1'].includes(location.hostname);
 
-  // Funzione centralizzata: toast + reload dopo 1.5s.
-  // Inline (non usa NOTIFICHE) perché può scattare prima che Alpine sia inizializzato.
-  const _ricarica = () => {
-    if (_ricaricaInCorso) return;
-    _ricaricaInCorso = true;
-    const el = document.createElement('div');
-    el.style.cssText =
-      'position:fixed;top:1rem;right:1rem;' +
-      'background:#1d4ed8;color:#fff;' +
-      'padding:.625rem 1rem;border-radius:.5rem;' +
-      'font-size:.8125rem;z-index:9999;' +
-      'box-shadow:0 4px 16px rgba(0,0,0,.2)';
-    el.textContent = '↻ App aggiornata, ricarico…';
-    document.body?.appendChild(el);
-    setTimeout(() => location.reload(), 1500);
-  };
+  if (IS_DEV) {
+    // SVILUPPO — annulla tutti i SW esistenti e svuota le cache (una tantum),
+    // poi ricarica per servire i file freschi. Dopo quella prima esecuzione,
+    // ogni F5 successivo è già pulito: nessun SW da togliere, ricarica immediata.
+    navigator.serviceWorker.getRegistrations()
+      .then(regs => {
+        if (regs.length === 0) return;  // già pulito: non fare nulla
+        return Promise.all([
+          ...regs.map(r => r.unregister()),
+          caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))),
+        ]).then(() => location.reload());  // ricarica una volta sola, poi basta
+      })
+      .catch(() => {});
 
-  // Monitora un singolo worker attraverso la sua transizione a 'activated'.
-  // Gestisce sia il caso in cui il worker sia già attivato, sia quello in
-  // cui sta ancora installando/aspettando — copre entrambi i lati della race condition.
-  const _monitoraWorker = (worker) => {
-    if (!worker || !hadController) return;
-    if (worker.state === 'activated') { _ricarica(); return; }
-    worker.addEventListener('statechange', () => {
-      if (worker.state === 'activated') _ricarica();
+  } else {
+    // PRODUZIONE (GitHub Pages / HTTPS) — SW attivo con aggiornamento automatico.
+    // Al cambio SW: toast "App aggiornata" + reload automatico dopo 1.5s.
+
+    const hadController = !!navigator.serviceWorker.controller;
+    let _ricaricaInCorso = false;
+
+    const _ricarica = () => {
+      if (_ricaricaInCorso) return;
+      _ricaricaInCorso = true;
+      const el = document.createElement('div');
+      el.style.cssText =
+        'position:fixed;top:1rem;right:1rem;background:#1d4ed8;color:#fff;' +
+        'padding:.625rem 1rem;border-radius:.5rem;font-size:.8125rem;' +
+        'z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.2)';
+      el.textContent = '↻ App aggiornata, ricarico…';
+      document.body?.appendChild(el);
+      setTimeout(() => location.reload(), 1500);
+    };
+
+    const _monitoraWorker = (worker) => {
+      if (!worker || !hadController) return;
+      if (worker.state === 'activated') { _ricarica(); return; }
+      worker.addEventListener('statechange', () => {
+        if (worker.state === 'activated') _ricarica();
+      });
+    };
+
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => {
+        if (reg.waiting)    _monitoraWorker(reg.waiting);
+        if (reg.installing) _monitoraWorker(reg.installing);
+        reg.addEventListener('updatefound', () => _monitoraWorker(reg.installing));
+      })
+      .catch(err => console.warn('[SW] Registrazione non riuscita:', err));
+
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hadController) _ricarica();
     });
-  };
-
-  // Registrazione IMMEDIATA (non aspetta 'load'): più tempo per intercettare
-  // reg.waiting / reg.installing prima che il nuovo SW completi l'installazione.
-  // Il browser verifica sw.js automaticamente ad ogni navigazione (page load),
-  // quindi NON usiamo reg.update() che causava "unknown error" in Chrome.
-  navigator.serviceWorker.register('./sw.js')
-    .then(reg => {
-      // Worker già in attesa al momento della registrazione (skipWaiting non ancora scattato)
-      if (reg.waiting)    _monitoraWorker(reg.waiting);
-      // Worker già in fase di install (race condition: sta ancora cachando i file)
-      if (reg.installing) _monitoraWorker(reg.installing);
-      // Aggiornamenti che iniziano DOPO la registrazione (caso normale)
-      reg.addEventListener('updatefound', () => _monitoraWorker(reg.installing));
-    })
-    .catch(err => console.warn('[SW] Registrazione non riuscita:', err));
-
-  // controllerchange: copertura aggiuntiva per quando skipWaiting+claim completano
-  // prima che i listener statechange sopra siano stati registrati.
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (hadController) _ricarica();
-  });
+  }
 }
 
 // ---------------------------------------------------------------------------
