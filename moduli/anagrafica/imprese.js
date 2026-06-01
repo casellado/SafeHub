@@ -475,37 +475,25 @@ const _TEMPLATE_IMPRESE = `
   </div><!-- /$store.cantiere.id -->
 
   <!-- ═══════════════════════════════════════════════════════════════
-       DRAWER: Editor impresa
-       position:fixed dentro #contenuto-modulo — si monta e smonta
-       col modulo; ciclo di vita Alpine pulito, nessun listener orfano.
+       DRAWER: usa le classi condivise .drawer / .drawer-header /
+       .drawer-body / .drawer-footer definite in styles.css.
+       NON mettere display:flex nell'inline style: Alpine x-show lo
+       cancellerebbe con el.style.display='' → layout a tre fasce rotto.
        ═══════════════════════════════════════════════════════════════ -->
-  <!-- ═══════════════════════════════════════════════════════════════
-       DRAWER: pannello laterale a destra, senza backdrop.
-       La lista e il menu laterale restano visibili e interagibili a sinistra.
-       Pattern da riusare per Lavoratori, Mezzi, Noli, Persone (fasi 2-5).
-       Chiusura: pulsante ✕ o tasto Escape.
+  <div x-show="drawerAperto" x-cloak
+       class="drawer-backdrop"
+       @click="chiudiDrawer(false)"
+       aria-hidden="true"></div>
 
-       Layout a tre fasce flex:
-         - header:  flex-shrink:0           → fisso in cima
-         - corpo:   flex:1 + overflow-y:auto + min-height:0  → scrollabile
-         - footer:  flex-shrink:0           → Salva sempre visibile in fondo
-       ═══════════════════════════════════════════════════════════════ -->
   <div x-show="drawerAperto" x-cloak
        @input="modificatoDopoCaricamento = true"
        @keydown.escape.window="chiudiDrawer(false)"
-       style="position:fixed;
-              top:var(--header-height);right:0;bottom:0;
-              width:44%;max-width:640px;min-width:320px;
-              z-index:100;
-              display:flex;flex-direction:column;
-              background:white;
-              box-shadow:-4px 0 32px rgba(0,0,0,0.15);
-              border-left:1px solid rgba(0,0,0,0.07)"
+       class="drawer"
        role="dialog" aria-modal="true" aria-label="Editor impresa">
 
       <!-- Intestazione drawer -->
-      <!-- Fascia 1: header — flex-shrink:0 → resta sempre visibile in cima -->
-      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-white" style="flex-shrink:0">
+      <!-- header fisso: .drawer-header da styles.css -->
+      <div class="drawer-header flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-white">
         <h2 class="text-base font-semibold text-slate-800">
           <span x-text="formNuova ? 'Nuova impresa' : (formDati.ragioneSociale || 'Modifica impresa')"></span>
         </h2>
@@ -515,10 +503,8 @@ const _TEMPLATE_IMPRESE = `
       </div>
 
       <!-- Corpo form -->
-      <!-- Fascia 2: corpo scrollabile.
-           flex:1 occupa lo spazio residuo; min-height:0 è essenziale —
-           senza di esso flex impedisce la compressione e overflow-y:auto non scatta mai. -->
-      <div class="px-5 py-4 space-y-3" style="flex:1;overflow-y:auto;min-height:0">
+      <!-- corpo scrollabile: .drawer-body da styles.css -->
+      <div class="drawer-body px-5 py-4 space-y-3">
 
         <!-- ── 1. Identificazione ──────────────────────────────── -->
         <details open class="border border-slate-200 rounded-xl overflow-hidden">
@@ -838,8 +824,8 @@ const _TEMPLATE_IMPRESE = `
       </div><!-- /corpo form -->
 
       <!-- Footer drawer: note warning + Salva -->
-      <!-- Fascia 3: footer — flex-shrink:0 → Salva sempre visibile in fondo -->
-      <div class="px-5 py-4 border-t border-slate-200 bg-slate-50" style="flex-shrink:0">
+      <!-- footer fisso: .drawer-footer da styles.css -->
+      <div class="drawer-footer px-5 py-4 border-t border-slate-200 bg-slate-50">
         <p class="text-xs text-slate-400 mb-3">
           Il salvataggio non è mai bloccato: i campi contrassegnati come "consigliati" generano
           solo avvisi, non errori.

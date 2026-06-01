@@ -266,6 +266,64 @@ body {
 .semaforo.normale         { background: var(--c-normale); }
 .semaforo.non-pertinente  { background: var(--c-non-pertinente); }
 
+/* ── Drawer laterale riusabile ──────────────────────────────────────
+   Pattern a tre fasce flex: header fisso / corpo scrollabile / footer fisso.
+   Usato da tutti i moduli dell'anagrafica (Imprese, Lavoratori, Mezzi…).
+   Per aggiornare il layout del drawer: modificare SOLO qui.
+
+   PERCHÉ le classi e non gli inline style:
+   Alpine x-show imposta el.style.display='none' (hide) e ='' (show).
+   Quando imposta ='' rimuove 'display:flex' dagli inline style → il div
+   torna display:block e il layout a tre fasce si rompe.
+   Con display:flex in una CLASSE CSS, Alpine rimuove solo il proprio
+   display:none; la classe ripristina flex automaticamente. ── */
+
+.drawer {
+  position: fixed;
+  top: var(--header-height);
+  right: 0;
+  bottom: 0;
+  width: 44%;
+  max-width: 640px;
+  min-width: 320px;
+  z-index: 100;
+  /* display:flex DEVE stare qui, non negli inline style — vedi nota sopra */
+  display: flex;
+  flex-direction: column;
+  background: var(--c-surface);
+  box-shadow: -4px 0 32px rgba(0,0,0,.15);
+  border-left: 1px solid rgba(0,0,0,.07);
+}
+
+.drawer-header { flex-shrink: 0; }
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;              /* ESSENZIALE: senza, flex-1 non comprime e scroll non scatta */
+  overscroll-behavior: contain;
+}
+
+.drawer-footer { flex-shrink: 0; }
+
+/* Backdrop semi-trasparente sull'area contenuto (esclude la sidebar nav) */
+.drawer-backdrop {
+  position: fixed;
+  top: var(--header-height);
+  left: var(--nav-width);    /* inizia dopo la sidebar */
+  bottom: 0;
+  right: 0;
+  z-index: 99;               /* sotto il drawer (z-index:100) */
+  cursor: pointer;
+  background: rgba(0,0,0,.18);
+}
+
+/* Mobile: tutta larghezza */
+@media (max-width: 640px) {
+  .drawer { width: 100%; max-width: 100%; min-width: 0; }
+  .drawer-backdrop { left: 0; }
+}
+
 /* ---- Utility accessibilità ---- */
 .sr-only {
   position: absolute; width: 1px; height: 1px;

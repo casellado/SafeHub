@@ -448,18 +448,18 @@ const _TEMPLATE_LAVORATORI = `
        Tre fasce flex: header fisso / corpo scrollabile / footer Salva.
        ═══════════════════════════════════════════════════════════════ -->
   <div x-show="drawerAperto" x-cloak
+       class="drawer-backdrop"
+       @click="chiudiDrawer(false)"
+       aria-hidden="true"></div>
+
+  <div x-show="drawerAperto" x-cloak
        @input="modificatoDopoCaricamento = true"
        @keydown.escape.window="chiudiDrawer(false)"
-       style="position:fixed;top:var(--header-height);right:0;bottom:0;
-              width:44%;max-width:640px;min-width:320px;z-index:100;
-              display:flex;flex-direction:column;
-              background:white;box-shadow:-4px 0 32px rgba(0,0,0,0.15);
-              border-left:1px solid rgba(0,0,0,0.07)"
+       class="drawer"
        role="dialog" aria-modal="true" aria-label="Editor lavoratore">
 
-    <!-- Fascia 1: header fisso -->
-    <div class="flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-white"
-         style="flex-shrink:0">
+    <!-- header fisso: .drawer-header da styles.css -->
+    <div class="drawer-header flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-white">
       <h2 class="text-base font-semibold text-slate-800">
         <span x-text="formNuova ? 'Nuovo lavoratore' : ([formDati.cognome, formDati.nome].filter(Boolean).join(' ') || 'Modifica lavoratore')"></span>
       </h2>
@@ -468,8 +468,8 @@ const _TEMPLATE_LAVORATORI = `
                      focus:outline-none focus:ring-2 focus:ring-slate-400">✕</button>
     </div>
 
-    <!-- Fascia 2: corpo scrollabile -->
-    <div class="px-5 py-4 space-y-3" style="flex:1;overflow-y:auto;min-height:0">
+    <!-- corpo scrollabile: .drawer-body da styles.css -->
+    <div class="drawer-body px-5 py-4 space-y-3">
 
       <!-- ── 1. Assegnazione impresa ────────────────────────────── -->
       <details open class="border border-slate-200 rounded-xl overflow-hidden">
@@ -830,8 +830,8 @@ const _TEMPLATE_LAVORATORI = `
 
     </div><!-- /corpo -->
 
-    <!-- Fascia 3: footer con Salva sempre visibile -->
-    <div class="px-5 py-4 border-t border-slate-200 bg-slate-50" style="flex-shrink:0">
+    <!-- footer fisso: .drawer-footer da styles.css -->
+    <div class="drawer-footer px-5 py-4 border-t border-slate-200 bg-slate-50">
       <p class="text-xs text-slate-400 mb-3">
         Il salvataggio non è mai bloccato. I campi mancanti generano avvisi, non errori.
       </p>
