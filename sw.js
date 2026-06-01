@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION ogni volta che cambiano asset locali cachati (CLAUDE.md §Git).
  */
 
-const CACHE_VERSION = 'safehub-archivio-v12';  // bump: SW disattivato su localhost (dev/prod split)
+const CACHE_VERSION = 'safehub-archivio-v13';  // bump: forza re-cache (drawer fix propagazione CDN)
 
 const ASSET_LOCALI = [
   './',
