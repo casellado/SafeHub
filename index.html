@@ -47,6 +47,7 @@
   <script src="moduli/anagrafica/noli.js"></script>
   <script src="moduli/anagrafica/persone.js"></script>
   <script src="moduli/anagrafica/cruscotto-scadenze.js"></script>
+  <script src="moduli/anagrafica/export-safecant.js"></script>
 </head>
 
 <body x-data x-cloak>
@@ -269,6 +270,11 @@
                 :class="{'attiva': $store.app.moduloAttivo === 'enti-terzi'}"
                 :aria-current="$store.app.moduloAttivo === 'enti-terzi' ? 'page' : null">
           <span aria-hidden="true">🏛</span> Enti Terzi
+        </button>
+        <button class="nav-voce" @click="navigaA('export-safecant')"
+                :class="{'attiva': $store.app.moduloAttivo === 'export-safecant'}"
+                :aria-current="$store.app.moduloAttivo === 'export-safecant' ? 'page' : null">
+          <span aria-hidden="true">📤</span> Esporta SafeCant
         </button>
 
         <!-- SICUREZZA -->

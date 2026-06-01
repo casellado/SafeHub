@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION ogni volta che cambiano asset locali cachati (CLAUDE.md §Git).
  */
 
-const CACHE_VERSION = 'safehub-archivio-v17';  // bump M4-F6: cruscotto scadenze
+const CACHE_VERSION = 'safehub-archivio-v18';  // bump M4-F7: export SafeCant
 
 const ASSET_LOCALI = [
   './',
@@ -35,6 +35,7 @@ const ASSET_LOCALI = [
   './moduli/anagrafica/noli.js',
   './moduli/anagrafica/persone.js',
   './moduli/anagrafica/cruscotto-scadenze.js',
+  './moduli/anagrafica/export-safecant.js',
   './assets/icon-192.png',
   './assets/icon-512.png',
 ];

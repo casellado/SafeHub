@@ -516,6 +516,58 @@ const ANAGRAFICA_SERVICE = (() => {
   };
 
   // ================================================================
+  // Export variante leggera per SafeCant
+  // ================================================================
+
+  /**
+   * Ricorsivamente:
+   *  - filtra gli array rimuovendo elementi con _cestino:true
+   *  - rimuove i campi _cestino e _eliminato_il da tutti gli oggetti
+   *  - svuota tutti i campi base64 (impostati a "")
+   *
+   * Una sola passata copre qualunque livello di annidamento dello schema,
+   * compresi sotto-documenti (documenti[], abilitazioni[], verifiche[], ecc.).
+   */
+  const _pulisciPerExport = (val) => {
+    if (Array.isArray(val)) {
+      return val
+        .filter(item => !(item && typeof item === 'object' && item._cestino))
+        .map(_pulisciPerExport);
+    }
+    if (val !== null && typeof val === 'object') {
+      const out = {};
+      for (const [k, v] of Object.entries(val)) {
+        if (k === '_cestino' || k === '_eliminato_il') continue; // campi interni → esclusi
+        if (k === 'base64') { out[k] = ''; continue; }          // blob → svuotato
+        out[k] = _pulisciPerExport(v);
+      }
+      return out;
+    }
+    return val;
+  };
+
+  /**
+   * Genera la variante LEGGERA dell'anagrafica corrente, pronta per SafeCant.
+   * Schema identico al canonico v2.0 — solo i base64 sono "".
+   * Entità e sotto-documenti cestinati vengono esclusi.
+   * I campi interni _cestino/_eliminato_il vengono rimossi.
+   * @returns {Object} anagrafica leggera
+   */
+  const esportaLeggera = () => {
+    if (!_dati) throw new Error('Anagrafica non caricata — esporta dopo aver selezionato il cantiere.');
+
+    // Deep copy via JSON serialization, poi pulizia ricorsiva
+    const leggera = _pulisciPerExport(JSON.parse(JSON.stringify(_dati)));
+
+    // Sovrascrive i metadati per la variante leggera
+    leggera.variante             = 'leggera';
+    leggera.generato_il          = new Date().toISOString();
+    leggera.generato_da_versione = '1.0.0';
+
+    return leggera;
+  };
+
+  // ================================================================
   // Calcolo scadenze e conformità — Noli
   // ================================================================
 
@@ -779,6 +831,7 @@ const ANAGRAFICA_SERVICE = (() => {
     aggiungi, aggiorna, cestina, ripristina, eliminaDefinitivamente,
     calcolaConformita, calcolaScadenzeImpresa,
     calcolaConformitaLavoratore, calcolaScadenzeLavoratore,
+    esportaLeggera,
     calcolaConformitaNolo, calcolaScadenzeNolo, collegaNolo,
     calcolaConformitaMezzo, calcolaScadenzeMezzo,
     calcolaConformitaAttrezzatura, calcolaScadenzeAttrezzatura,
