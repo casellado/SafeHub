@@ -79,6 +79,30 @@ const ANAGRAFICA_SERVICE = (() => {
     ALTRO: 'Altro documento',
   };
 
+  // ================================================================
+  // TIPI ABILITAZIONE OPERATORI — PUNTO UNICO per la lista e la criticità.
+  // Fonte: Accordo Stato-Regioni 22/02/2012 (att. art.73 c.5 D.Lgs 81/08).
+  // Per aggiungere/togliere un tipo di macchina: modificare SOLO questo array.
+  // Il valore `valore` è la stringa salvata nel JSON (identica a ciò che SafeCant legge).
+  // critica: true → scadenza usa soglia `abilitazione_operatore` (60gg, 🔴 non silenziabile).
+  //          false → usa soglia `default` (30gg, 🟢 normale).
+  // ================================================================
+  const TIPI_ABILITAZIONE_OPERATORE = [
+    { valore: 'PLE',             etichetta: 'Piattaforme di lavoro elevabili (PLE)',          critica: true  },
+    { valore: 'GRU_TORRE',       etichetta: 'Gru a torre',                                    critica: true  },
+    { valore: 'GRU_MOBILE',      etichetta: 'Gru mobile (autogru)',                           critica: true  },
+    { valore: 'GRU_AUTOCARRO',   etichetta: 'Gru per autocarro',                              critica: true  },
+    { valore: 'CARRELLO_ELEVATORE', etichetta: 'Carrelli elevatori semoventi',                critica: true  },
+    { valore: 'MOVIMENTO_TERRA', etichetta: 'Escavatori / pale / terne / movimento terra',    critica: true  },
+    { valore: 'POMPA_CLS',       etichetta: 'Pompe per calcestruzzo',                         critica: true  },
+    { valore: 'TRATTORE',        etichetta: 'Trattori agricoli o forestali',                  critica: true  },
+    { valore: 'ALTRO',           etichetta: 'Altro (testo libero)',                           critica: false },
+  ];
+  // Set dei valori critici: usato da calcolaScadenzeLavoratore per determinare la soglia
+  const _TIPI_CRITICI = new Set(
+    TIPI_ABILITAZIONE_OPERATORE.filter(t => t.critica).map(t => t.valore)
+  );
+
   // Prefissi ID per collezione (schema-anagrafica-canonico-v2.md)
   const PREFISSI = {
     imprese: 'imp', lavoratori: 'lav', mezzi: 'mzo', attrezzature: 'att',
@@ -325,6 +349,71 @@ const ANAGRAFICA_SERVICE = (() => {
   };
 
   // ================================================================
+  // Calcolo scadenze lavoratore (funzione pura)
+  // ================================================================
+
+  /**
+   * Restituisce le scadenze problematiche di un lavoratore
+   * (visita medica, formazione, abilitazioni).
+   * Usa le soglie di IMPOSTAZIONI_SERVICE (M2).
+   * @param {Object} lav
+   * @returns {Array<{tipo, label, scadenza, giorni, stato, criticita}>}
+   */
+  const calcolaScadenzeLavoratore = (lav) => {
+    const soglie = IMPOSTAZIONI_SERVICE.soglie();
+    const risultati = [];
+
+    const _aggiungi = (tipo, label, scadenza, sogliaTipo, criticita) => {
+      if (!scadenza) return;
+      const gg     = UTILS.giorniAllaScadenza(scadenza);
+      const soglia = soglie[sogliaTipo] ?? soglie.default;
+      const stato  = gg === null ? 'senza_data' : gg < 0 ? 'scaduto' : gg < soglia.giorni ? 'in_scadenza' : 'valido';
+      if (stato !== 'valido' && stato !== 'senza_data') {
+        risultati.push({ tipo, label, scadenza, giorni: gg, stato, criticita });
+      }
+    };
+
+    // Idoneità sanitaria (critica: operatore non può lavorare senza visita valida)
+    _aggiungi('visita_medica', 'Idoneità sanitaria', lav.visitaMedica?.scadenza, 'idoneita_sanitaria', 'critica');
+
+    // Attestato formazione (alta)
+    _aggiungi('formazione', 'Attestato formazione', lav.attestatoFormazione?.scadenza, 'formazione', 'alta');
+
+    // Abilitazioni: ogni patentino ha la propria scadenza
+    for (const ab of (lav.abilitazioni ?? [])) {
+      if (ab._cestino) continue;
+      const isCritica  = _TIPI_CRITICI.has(ab.tipo);
+      const sogliaTipo = isCritica ? 'abilitazione_operatore' : 'default';
+      const criticita  = isCritica ? 'critica' : 'normale';
+      const label      = TIPI_ABILITAZIONE_OPERATORE.find(t => t.valore === ab.tipo)?.etichetta ?? ab.tipo;
+      _aggiungi('abilitazione_' + ab.tipo, label, ab.scadenza, sogliaTipo, criticita);
+    }
+
+    return risultati.sort((a, b) => (a.giorni ?? 999) - (b.giorni ?? 999));
+  };
+
+  /**
+   * Calcola lo stato di conformità di un lavoratore.
+   * La conformità è interamente scadenziale (no matrice §12).
+   * @param {Object} lav
+   * @returns {{stato: 'verde'|'giallo'|'rosso'|'grigio', critico: boolean, scadenze: Array}}
+   */
+  const calcolaConformitaLavoratore = (lav) => {
+    if (!lav?.nome && !lav?.cognome) return { stato: 'grigio', critico: false, scadenze: [] };
+
+    const scadenze = calcolaScadenzeLavoratore(lav);
+    const critico  = scadenze.some(s => s.stato === 'scaduto' && s.criticita === 'critica');
+    const hasRosso = critico || scadenze.some(s => s.stato === 'scaduto');
+    const hasGiallo = scadenze.some(s => s.stato === 'in_scadenza');
+
+    // Visita medica assente e non inserita: avviso giallo (guida, non blocca)
+    const visitaAssente = !lav.visitaMedica?.scadenza && !lav.visitaMedica?.ente;
+
+    const stato = hasRosso ? 'rosso' : (hasGiallo || visitaAssente) ? 'giallo' : 'verde';
+    return { stato, critico, scadenze };
+  };
+
+  // ================================================================
   // Helper: template vuoto per il form di creazione
   // ================================================================
   const creaEntitaVuota = (nomeCollezione) => {
@@ -338,6 +427,18 @@ const ANAGRAFICA_SERVICE = (() => {
       ccnlApplicato: null, organicoMedioAnnuo: null,
       documenti: [],
     };
+    if (nomeCollezione === 'lavoratori') return {
+      nome: '', cognome: '', codiceFiscale: '', mansione: '',
+      dataNascita: null, luogoNascita: '', telefono: '', email: '',
+      impresa_id: null,
+      attestatoFormazione: { numero: null, scadenza: null, filename: null, base64: null },
+      visitaMedica:        { ente: null, data: null, scadenza: null, filename: null, base64: null },
+      abilitazioni: [],
+      foto: [],   // gestito da M24; inizializzato vuoto, variante leggera SafeCant lo ignora
+      tesseraRiconoscimento: { presente: false, filename: null, base64: null },
+      badgeCantiere:         { codice: null, presente: false },
+      ruoliSpeciali: [],
+    };
     return {};
   };
 
@@ -349,11 +450,13 @@ const ANAGRAFICA_SERVICE = (() => {
     get, getEntita,
     aggiungi, aggiorna, cestina, ripristina, eliminaDefinitivamente,
     calcolaConformita, calcolaScadenzeImpresa,
+    calcolaConformitaLavoratore, calcolaScadenzeLavoratore,
     creaEntitaVuota,
     get dati()        { return _dati; },
     get isCaricato()  { return _dati !== null; },
     get cantiereId()  { return _cantiereId; },
-    CONFORMITA_MATRIX,   // esposta per debug/ispezione
+    CONFORMITA_MATRIX,            // esposta per debug
     LABEL_DOC,
+    TIPI_ABILITAZIONE_OPERATORE,  // usata da lavoratori.js per il dropdown
   };
 })();
