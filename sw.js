@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION ogni volta che cambiano asset locali cachati (CLAUDE.md §Git).
  */
 
-const CACHE_VERSION = 'safehub-archivio-v13';  // bump: forza re-cache (drawer fix propagazione CDN)
+const CACHE_VERSION = 'safehub-archivio-v14';  // bump M4-F3: mezzi e attrezzature
 
 const ASSET_LOCALI = [
   './',
@@ -31,6 +31,7 @@ const ASSET_LOCALI = [
   './shared/anagrafica-service.js',
   './moduli/anagrafica/imprese.js',
   './moduli/anagrafica/lavoratori.js',
+  './moduli/anagrafica/mezzi-attrezzature.js',
   './assets/icon-192.png',
   './assets/icon-512.png',
 ];

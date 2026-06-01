@@ -52,14 +52,16 @@ const IMPOSTAZIONI_SERVICE = (() => {
     // Soglie da Anagrafica.md §5.4 — preavvisi calibrati sulla criticità
     soglie_scadenza: {
       abilitazione_operatore:   { giorni: 60, criticita: 'critica' },
-      verifica_periodica_mezzo: { giorni: 60, criticita: 'critica' },
-      idoneita_sanitaria:       { giorni: 45, criticita: 'critica' },
-      pimus_ponteggi:           { giorni: 60, criticita: 'critica' },
-      patente_crediti:          { giorni: 45, criticita: 'critica' },
-      formazione:               { giorni: 45, criticita: 'alta'    },
-      durc:                     { giorni: 30, criticita: 'alta'    },
-      polizza_rc:               { giorni: 30, criticita: 'alta'    },
-      default:                  { giorni: 30, criticita: 'normale' },
+      verifica_periodica_mezzo:            { giorni: 60, criticita: 'critica' },
+      verifica_mezzo_non_sollevamento:     { giorni: 30, criticita: 'normale' },
+      verifica_attrezzatura:               { giorni: 30, criticita: 'normale' },
+      idoneita_sanitaria:                  { giorni: 45, criticita: 'critica' },
+      pimus_ponteggi:                      { giorni: 60, criticita: 'critica' },
+      patente_crediti:                     { giorni: 45, criticita: 'critica' },
+      formazione:                          { giorni: 45, criticita: 'alta'    },
+      durc:                                { giorni: 30, criticita: 'alta'    },
+      polizza_rc:                          { giorni: 30, criticita: 'alta'    },
+      default:                             { giorni: 30, criticita: 'normale' },
     },
 
     preferenze_app: {

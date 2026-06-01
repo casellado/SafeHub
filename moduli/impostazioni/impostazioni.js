@@ -13,7 +13,9 @@
 
 const ETICHETTE_SOGLIE = {
   abilitazione_operatore:   'Abilitazione/patentino operatore',
-  verifica_periodica_mezzo: 'Verifica periodica mezzo sollevamento',
+  verifica_periodica_mezzo:            'Verifica periodica mezzo sollevamento',
+  verifica_mezzo_non_sollevamento:     'Verifica periodica mezzo (non sollevamento)',
+  verifica_attrezzatura:               'Verifica ordinaria attrezzatura',
   idoneita_sanitaria:       'Idoneità sanitaria lavoratore',
   pimus_ponteggi:           'PiMUS / autorizzazione ponteggi',
   patente_crediti:          'Patente a crediti impresa',

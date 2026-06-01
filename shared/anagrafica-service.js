@@ -103,6 +103,72 @@ const ANAGRAFICA_SERVICE = (() => {
     TIPI_ABILITAZIONE_OPERATORE.filter(t => t.critica).map(t => t.valore)
   );
 
+  // ================================================================
+  // TIPI MEZZO — PUNTO UNICO per i tipi di macchina e la criticità verifica.
+  // sollevamento: true → D.M. 11/04/2011 verifiche INAIL obbligatorie (art.71 c.11)
+  //              → soglia 'verifica_periodica_mezzo' (60gg, critica).
+  //              false → soglia 'verifica_mezzo_non_sollevamento' (30gg, normale).
+  // ================================================================
+  const TIPI_MEZZO = [
+    { valore: 'GRU_TORRE',       etichetta: 'Gru a torre',                        sollevamento: true  },
+    { valore: 'GRU_MOBILE',      etichetta: 'Gru mobile (autogru)',                sollevamento: true  },
+    { valore: 'GRU_AUTOCARRO',   etichetta: 'Gru per autocarro',                  sollevamento: true  },
+    { valore: 'PLE',             etichetta: 'Piattaforma di lavoro elevabile (PLE)', sollevamento: true  },
+    { valore: 'ARGANO',          etichetta: 'Argano / paranchi >200 kg',           sollevamento: true  },
+    { valore: 'MONTACARICHI',    etichetta: 'Montacarichi',                        sollevamento: true  },
+    { valore: 'ESCAVATORE',      etichetta: 'Escavatore',                          sollevamento: false },
+    { valore: 'PALA_CARICATRICE',etichetta: 'Pala caricatrice',                   sollevamento: false },
+    { valore: 'TERNA',           etichetta: 'Terna',                               sollevamento: false },
+    { valore: 'AUTOCARRO',       etichetta: 'Autocarro / camion',                  sollevamento: false },
+    { valore: 'POMPA_CLS',       etichetta: 'Pompa per calcestruzzo',              sollevamento: false },
+    { valore: 'ALTRO',           etichetta: 'Altro (testo libero)',                sollevamento: false },
+  ];
+  const _TIPI_MEZZO_SOLLEVAMENTO = new Set(
+    TIPI_MEZZO.filter(t => t.sollevamento).map(t => t.valore)
+  );
+
+  // ================================================================
+  // TIPOLOGIE ATTREZZATURA — PUNTO UNICO.
+  // ponteggio: true → PiMUS obbligatorio → soglia 'pimus_ponteggi' (60gg, critica).
+  // ================================================================
+  const TIPOLOGIE_ATTREZZATURA = [
+    { valore: 'PONTEGGIO',      etichetta: 'Ponteggio (PiMUS obbligatorio)', ponteggio: true  },
+    { valore: 'TRABATTELLO',    etichetta: 'Trabattello',                    ponteggio: false },
+    { valore: 'BETONIERA',      etichetta: 'Betoniera',                      ponteggio: false },
+    { valore: 'COMPRESSORE',    etichetta: 'Compressore',                    ponteggio: false },
+    { valore: 'UTENSILE',       etichetta: 'Utensile',                       ponteggio: false },
+    { valore: 'DPI_COLLETTIVO', etichetta: 'DPI collettivo',                 ponteggio: false },
+    { valore: 'ALTRO',          etichetta: 'Altro (testo libero)',            ponteggio: false },
+  ];
+
+  // Tipi di verifica periodica (dropdown per mezzi)
+  const TIPI_VERIFICA_MEZZO = [
+    { valore: 'PRIMA_VERIFICA',          etichetta: 'Prima verifica periodica (INAIL)' },
+    { valore: 'VERIFICA_PERIODICA',      etichetta: 'Verifica periodica (organismo abilitato)' },
+    { valore: 'CONTROLLO_FUNI',          etichetta: 'Controllo funi e catene' },
+    { valore: 'CONTROLLO_GANCI',         etichetta: 'Controllo ganci' },
+    { valore: 'INDAGINE_SUPPLEMENTARE',  etichetta: 'Indagine supplementare (mezzo >20 anni)' },
+    { valore: 'ALTRO',                   etichetta: 'Altro' },
+  ];
+
+  // Tipi di verifica per attrezzature
+  const TIPI_VERIFICA_ATT = [
+    { valore: 'ISPEZIONE_VISIVA',  etichetta: 'Ispezione visiva periodica' },
+    { valore: 'VERIFICA_STABILITA',etichetta: 'Verifica stabilità (ponteggio)' },
+    { valore: 'MANUTENZIONE',      etichetta: 'Manutenzione ordinaria' },
+    { valore: 'ALTRO',             etichetta: 'Altro' },
+  ];
+
+  // Tipi documento specifico per attrezzature (ponteggi — schema §7)
+  const TIPI_DOC_SPECIFICO_ATT = [
+    { valore: 'PIMUS',                   etichetta: 'PiMUS',                    critico: true  },
+    { valore: 'AUTORIZZAZIONE_MINISTERIALE', etichetta: 'Autorizzazione ministeriale', critico: true  },
+    { valore: 'DISEGNO_ESECUTIVO',       etichetta: 'Disegno esecutivo',        critico: false },
+    { valore: 'PROGETTO_PONTEGGIO',      etichetta: 'Progetto ponteggio (>24m)', critico: false },
+    { valore: 'FORMAZIONE_MONTATORI',    etichetta: 'Formazione montatori',     critico: false },
+    { valore: 'ALTRO',                   etichetta: 'Altro documento specifico', critico: false },
+  ];
+
   // Prefissi ID per collezione (schema-anagrafica-canonico-v2.md)
   const PREFISSI = {
     imprese: 'imp', lavoratori: 'lav', mezzi: 'mzo', attrezzature: 'att',
@@ -414,6 +480,106 @@ const ANAGRAFICA_SERVICE = (() => {
   };
 
   // ================================================================
+  // Calcolo scadenze e conformità — Mezzi
+  // ================================================================
+
+  /**
+   * Scadenze problematiche di un mezzo (verifichePeriodiche[].prossima).
+   * Criticità in base a se il mezzo è di sollevamento (TIPI_MEZZO_SOLLEVAMENTO).
+   */
+  const calcolaScadenzeMezzo = (mezzo) => {
+    const soglie = IMPOSTAZIONI_SERVICE.soglie();
+    const isSollevamento = _TIPI_MEZZO_SOLLEVAMENTO.has(mezzo.tipologia);
+    const sogliaTipo     = isSollevamento ? 'verifica_periodica_mezzo' : 'verifica_mezzo_non_sollevamento';
+    const criticita      = isSollevamento ? 'critica' : 'normale';
+    const risultati      = [];
+
+    for (const vp of (mezzo.verifichePeriodiche ?? [])) {
+      if (vp._cestino || !vp.prossima) continue;
+      const gg     = UTILS.giorniAllaScadenza(vp.prossima);
+      const soglia = soglie[sogliaTipo] ?? soglie.default;
+      const stato  = gg < 0 ? 'scaduto' : gg < soglia.giorni ? 'in_scadenza' : 'valido';
+      if (stato !== 'valido') {
+        risultati.push({
+          tipo: 'verifica_periodica',
+          label: TIPI_VERIFICA_MEZZO.find(t => t.valore === vp.tipo)?.etichetta ?? vp.tipo ?? 'Verifica periodica',
+          scadenza: vp.prossima, giorni: gg, stato, criticita,
+        });
+      }
+    }
+    return risultati.sort((a, b) => (a.giorni ?? 999) - (b.giorni ?? 999));
+  };
+
+  /** Conformità mezzo: puramente scadenziale (no matrice §12). */
+  const calcolaConformitaMezzo = (mezzo) => {
+    if (!mezzo?.tipologia) return { stato: 'grigio', critico: false, scadenze: [] };
+    const scadenze  = calcolaScadenzeMezzo(mezzo);
+    const critico   = scadenze.some(s => s.stato === 'scaduto' && s.criticita === 'critica');
+    const hasRosso  = critico || scadenze.some(s => s.stato === 'scaduto');
+    const hasGiallo = scadenze.some(s => s.stato === 'in_scadenza');
+    return { stato: hasRosso ? 'rosso' : hasGiallo ? 'giallo' : 'verde', critico, scadenze };
+  };
+
+  // ================================================================
+  // Calcolo scadenze e conformità — Attrezzature
+  // ================================================================
+
+  /**
+   * Scadenze problematiche di un'attrezzatura.
+   * verifiche[].prossima → soglia 'verifica_attrezzatura'.
+   * documentiSpecifici[].scadenza → PiMUS/AutorizzazioneMin critica, altri normale.
+   */
+  const calcolaScadenzeAttrezzatura = (att) => {
+    const soglie    = IMPOSTAZIONI_SERVICE.soglie();
+    const risultati = [];
+
+    for (const v of (att.verifiche ?? [])) {
+      if (v._cestino || !v.prossima) continue;
+      const gg     = UTILS.giorniAllaScadenza(v.prossima);
+      const soglia = soglie.verifica_attrezzatura ?? soglie.default;
+      const stato  = gg < 0 ? 'scaduto' : gg < soglia.giorni ? 'in_scadenza' : 'valido';
+      if (stato !== 'valido') {
+        risultati.push({
+          tipo: 'verifica',
+          label: TIPI_VERIFICA_ATT.find(t => t.valore === v.tipo)?.etichetta ?? v.tipo ?? 'Verifica',
+          scadenza: v.prossima, giorni: gg, stato, criticita: 'normale',
+        });
+      }
+    }
+
+    for (const d of (att.documentiSpecifici ?? [])) {
+      if (d._cestino || !d.scadenza) continue;
+      const docDef    = TIPI_DOC_SPECIFICO_ATT.find(t => t.valore === d.tipo);
+      const critico   = docDef?.critico ?? false;
+      const sogliaTipo = critico ? 'pimus_ponteggi' : 'default';
+      const criticita  = critico ? 'critica' : 'normale';
+      const soglia     = soglie[sogliaTipo] ?? soglie.default;
+      const gg         = UTILS.giorniAllaScadenza(d.scadenza);
+      const stato      = gg < 0 ? 'scaduto' : gg < soglia.giorni ? 'in_scadenza' : 'valido';
+      if (stato !== 'valido') {
+        risultati.push({
+          tipo: 'doc_specifico',
+          label: docDef?.etichetta ?? d.tipo ?? 'Documento specifico',
+          scadenza: d.scadenza, giorni: gg, stato, criticita,
+        });
+      }
+    }
+
+    return risultati.sort((a, b) => (a.giorni ?? 999) - (b.giorni ?? 999));
+  };
+
+  /** Conformità attrezzatura: scadenziale + conformità CE assente (avviso giallo). */
+  const calcolaConformitaAttrezzatura = (att) => {
+    if (!att?.tipologia) return { stato: 'grigio', critico: false, scadenze: [] };
+    const scadenze  = calcolaScadenzeAttrezzatura(att);
+    const critico   = scadenze.some(s => s.stato === 'scaduto' && s.criticita === 'critica');
+    const hasRosso  = critico || scadenze.some(s => s.stato === 'scaduto');
+    const hasGiallo = scadenze.some(s => s.stato === 'in_scadenza')
+                      || (!att.dichiarazioneConformitaCE?.presente);
+    return { stato: hasRosso ? 'rosso' : hasGiallo ? 'giallo' : 'verde', critico, scadenze };
+  };
+
+  // ================================================================
   // Helper: template vuoto per il form di creazione
   // ================================================================
   const creaEntitaVuota = (nomeCollezione) => {
@@ -426,6 +592,25 @@ const ANAGRAFICA_SERVICE = (() => {
       figureSicurezza: { rspp: null, medicoCompetente: null, rls: null, preposti: [], direttoreTecnico: null, direttoreCantiere: null },
       ccnlApplicato: null, organicoMedioAnnuo: null,
       documenti: [],
+    };
+    if (nomeCollezione === 'mezzi') return {
+      tipologia: '', marca: '', modello: '',
+      matricola: '', numeroSerie: '', anno: null,
+      presenteInCantiere: true,
+      impresa_id: null,
+      nolo_id: null,    // M4 F4
+      libretto: { filename: null, base64: null },
+      verifichePeriodiche: [],
+      foto: [],         // M24
+    };
+    if (nomeCollezione === 'attrezzature') return {
+      tipologia: '', descrizione: '', matricola: null,
+      impresa_id: null,
+      nolo_id: null,    // M4 F4
+      dichiarazioneConformitaCE: { presente: false, filename: null, base64: null },
+      libretto: { filename: null, base64: null },
+      verifiche: [],
+      documentiSpecifici: [],
     };
     if (nomeCollezione === 'lavoratori') return {
       nome: '', cognome: '', codiceFiscale: '', mansione: '',
@@ -451,12 +636,16 @@ const ANAGRAFICA_SERVICE = (() => {
     aggiungi, aggiorna, cestina, ripristina, eliminaDefinitivamente,
     calcolaConformita, calcolaScadenzeImpresa,
     calcolaConformitaLavoratore, calcolaScadenzeLavoratore,
+    calcolaConformitaMezzo, calcolaScadenzeMezzo,
+    calcolaConformitaAttrezzatura, calcolaScadenzeAttrezzatura,
     creaEntitaVuota,
     get dati()        { return _dati; },
     get isCaricato()  { return _dati !== null; },
     get cantiereId()  { return _cantiereId; },
-    CONFORMITA_MATRIX,            // esposta per debug
+    CONFORMITA_MATRIX,
     LABEL_DOC,
-    TIPI_ABILITAZIONE_OPERATORE,  // usata da lavoratori.js per il dropdown
+    TIPI_ABILITAZIONE_OPERATORE,
+    TIPI_MEZZO, TIPOLOGIE_ATTREZZATURA,
+    TIPI_VERIFICA_MEZZO, TIPI_VERIFICA_ATT, TIPI_DOC_SPECIFICO_ATT,
   };
 })();
