@@ -46,6 +46,7 @@
   <script src="moduli/anagrafica/mezzi-attrezzature.js"></script>
   <script src="moduli/anagrafica/noli.js"></script>
   <script src="moduli/anagrafica/persone.js"></script>
+  <script src="moduli/anagrafica/cruscotto-scadenze.js"></script>
 </head>
 
 <body x-data x-cloak>
@@ -212,6 +213,15 @@
       <nav class="shell-nav" role="navigation" aria-label="Menu principale di SafeHub Archivio">
         <!-- .nav-items: corpo scrollabile — tutte le voci del menu -->
         <div class="nav-items">
+
+        <!-- CRUSCOTTO SCADENZE — in cima per massima visibilità -->
+        <button class="nav-voce"
+                @click="navigaA('cruscotto-scadenze')"
+                :class="{'attiva': $store.app.moduloAttivo === 'cruscotto-scadenze'}"
+                :aria-current="$store.app.moduloAttivo === 'cruscotto-scadenze' ? 'page' : null"
+                :style="$store.app.moduloAttivo !== 'cruscotto-scadenze' && $store.cantiere.id ? '' : ''">
+          <span aria-hidden="true">📊</span> Cruscotto Scadenze
+        </button>
 
         <!-- CANTIERE -->
         <div class="nav-sezione" role="presentation">Cantiere</div>
