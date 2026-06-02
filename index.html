@@ -55,6 +55,7 @@
   <script src="moduli/anagrafica/cruscotto-scadenze.js"></script>
   <script src="moduli/anagrafica/export-safecant.js"></script>
   <script src="moduli/verbale-riunione/verbale-riunione.js"></script>
+  <script src="moduli/proposta-sospensione/proposta-sospensione.js"></script>
 </head>
 
 <body x-data x-cloak>
@@ -326,6 +327,11 @@
                 :class="{'attiva': $store.app.moduloAttivo === 'verbale-riunione'}"
                 :aria-current="$store.app.moduloAttivo === 'verbale-riunione' ? 'page' : null">
           <span aria-hidden="true">📋</span> Verbale Riunione
+        </button>
+        <button class="nav-voce" @click="navigaA('proposta-sospensione')"
+                :class="{'attiva': $store.app.moduloAttivo === 'proposta-sospensione'}"
+                :aria-current="$store.app.moduloAttivo === 'proposta-sospensione' ? 'page' : null">
+          <span aria-hidden="true">✉</span> Proposta Sospensione
         </button>
         <button class="nav-voce sospesa"
                 disabled aria-disabled="true"

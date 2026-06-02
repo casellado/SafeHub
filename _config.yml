@@ -1,0 +1,21 @@
+# _config.yml — configurazione minima per GitHub Pages
+# SafeHub Archivio è una PWA statica, non un sito Jekyll.
+# Exclude: impedisce a Jekyll di processare i file applicativi e la documentazione
+# che contiene sintassi docxtemplater ({%...} e {@ ...}) interpretata come Liquid.
+
+exclude:
+  - docs/
+  - moduli/
+  - shared/
+  - vendor/
+  - templates/
+  - test-m6.html
+  - server.py
+  - avvia.sh
+  - avvia.bat
+  - sw.js
+  - "*.js"
+  - "*.py"
+  - "*.sh"
+  - CLAUDE.md
+  - README.md
