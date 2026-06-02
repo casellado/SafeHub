@@ -102,14 +102,73 @@ const MOTORE_DOCX = (() => {
     return `<w:r>${rpr}${_t(text)}</w:r>`;
   };
 
-  const _para = (content, align = '') => {
-    const pPr = align ? `<w:pPr><w:jc w:val="${align}"/></w:pPr>` : '';
+  // ── Proprietà tipografiche paragrafo ─────────────────────────────────────
+  // Legge gli attributi data-* da un DOM node e produce il contenuto
+  // interno di <w:pPr> (senza il tag wrapper). I documenti passano i valori
+  // via attributi HTML; M6 non hardcoda valori specifici di nessun documento.
+  //
+  // Attributi riconosciuti:
+  //   data-line="15"       → w:spacing line=360 auto  (interlinea 1,5)
+  //   data-line="exact280" → w:spacing line=280 exact (interlinea compatta)
+  //   data-before / data-after (twip) → w:spacing before/after
+  //   data-indent="elenco" → w:ind left=567 hanging=283 (voci con casella)
+  //   data-indent="destra" → w:ind left=5529            (blocco a destra)
+  //   data-indent="firma"  → w:ind left=5670            (firma a destra)
+  //   data-left / data-hanging (twip generici)
+  //   data-align           → w:jc
+  //   default (nessun data-line): line=276 auto ≈1,15 — non compresso
+  const _pPrFromNode = (node) => {
+    const get = (a) => node?.getAttribute?.(a) || '';
+    const parts = [];
+
+    // Spacing: line + before + after in un solo <w:spacing>
+    const lineAttr = get('data-line');
+    let lineVal = '276', lineRule = 'auto'; // default non-compresso ≈1,15
+    if (lineAttr === '15')               { lineVal = '360'; lineRule = 'auto';  }
+    else if (lineAttr.startsWith('exact')) { lineVal = lineAttr.slice(5); lineRule = 'exact'; }
+    const before = get('data-before');
+    const after  = get('data-after');
+    const sAttrs = [
+      before ? `w:before="${before}"` : '',
+      after  ? `w:after="${after}"`   : '',
+      `w:line="${lineVal}" w:lineRule="${lineRule}"`,
+    ].filter(Boolean).join(' ');
+    parts.push(`<w:spacing ${sAttrs}/>`);
+
+    // Indentazione (ordine OOXML: spacing → ind → jc)
+    const indent  = get('data-indent');
+    const left    = get('data-left');
+    const hanging = get('data-hanging');
+    if      (indent === 'elenco') parts.push('<w:ind w:left="567" w:hanging="283"/>');
+    else if (indent === 'destra') parts.push('<w:ind w:left="5529"/>');
+    else if (indent === 'firma')  parts.push('<w:ind w:left="5670"/>');
+    else if (left)                parts.push(`<w:ind w:left="${left}"${hanging ? ` w:hanging="${hanging}"` : ''}/>`);
+
+    // Allineamento
+    const align = get('data-align');
+    if (align) parts.push(`<w:jc w:val="${align}"/>`);
+
+    return parts.join('');
+  };
+
+  // pPrXml = contenuto interno di <w:pPr>, prodotto da _pPrFromNode o stringa custom
+  const _para = (content, pPrXml = '') => {
+    const pPr = pPrXml ? `<w:pPr>${pPrXml}</w:pPr>` : '';
     return `<w:p>${pPr}${content || '<w:r><w:t/></w:r>'}</w:p>`;
   };
 
+  // _defaultPPr: spacing default non-compresso per paragrafi senza nodo DOM
+  const _defaultPPr = '<w:spacing w:line="276" w:lineRule="auto"/>';
+
   const _heading = (text, level) => {
     const sz = level === 2 ? '28' : '24'; // 14pt / 12pt
-    return `<w:p><w:r><w:rPr><w:b/><w:bCs/><w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr>${_t(text)}</w:r></w:p>`;
+    // Spacing strutturale hardcoded: h2/h3 devono sempre staccarsi dal contesto
+    const spacing = level === 2
+      ? '<w:spacing w:before="160" w:after="100" w:line="276" w:lineRule="auto"/>'
+      : '<w:spacing w:before="200" w:after="80"  w:line="276" w:lineRule="auto"/>';
+    return `<w:p><w:pPr>${spacing}</w:pPr>` +
+           `<w:r><w:rPr><w:b/><w:bCs/><w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr>` +
+           `${_t(text)}</w:r></w:p>`;
   };
 
   // OOXML drawing per immagini inline (body e header)
@@ -226,7 +285,7 @@ const MOTORE_DOCX = (() => {
     for (const node of nodes) {
       if (node.nodeType === 3) {
         const t = (node.textContent || '').trim();
-        if (t) ooxml += _para(_run(t));
+        if (t) ooxml += _para(_run(t), _defaultPPr); // default non-compresso
         continue;
       }
       if (node.nodeType !== 1) continue;
@@ -239,13 +298,14 @@ const MOTORE_DOCX = (() => {
       } else if (tag === 'H3') {
         ooxml += _heading(node.textContent, 3);
       } else if (tag === 'P') {
-        const align = node.dataset?.align || node.getAttribute('data-align') || '';
-        const runs  = _collectRuns(node.childNodes);
-        ooxml += _para(runs, align);
+        // _pPrFromNode legge data-line, data-before, data-after, data-indent,
+        // data-left, data-hanging, data-align e produce il pPr completo
+        const runs = _collectRuns(node.childNodes);
+        ooxml += _para(runs, _pPrFromNode(node));
       } else if (tag === 'TABLE') {
         ooxml += _tabella(node, textWidthTwips);
       } else if (tag === 'BR') {
-        ooxml += _para(`<w:r><w:br/></w:r>`);
+        ooxml += _para(`<w:r><w:br/></w:r>`, _defaultPPr);
       } else if (tag === 'IMG') {
         // IMG a livello di blocco
         const src  = node.getAttribute('src') || '';
@@ -255,7 +315,7 @@ const MOTORE_DOCX = (() => {
         const b64  = src.split(',')[1] || '';
         const rId  = `rId_m6_${id}`;
         _imgReg.push({ id, rId, mediaName: `m6_body_${id}.${ext}`, b64, ext });
-        ooxml += _para(`<w:r>${_drawing(rId, dims.cx, dims.cy, id)}</w:r>`);
+        ooxml += _para(`<w:r>${_drawing(rId, dims.cx, dims.cy, id)}</w:r>`, _defaultPPr);
       } else {
         // Tag non supportato: scende nei figli senza emettere wrapper
         ooxml += _walk(node.childNodes, textWidthTwips);
@@ -350,9 +410,17 @@ const MOTORE_DOCX = (() => {
     `.hdr-logo img{max-height:60px;max-width:100%;object-fit:contain}` +
     `.hdr-titolo{text-align:center;font-weight:bold;font-size:13pt;display:flex;align-items:center;justify-content:center}` +
     `.hdr-meta{text-align:right;font-size:9pt;color:#555;display:flex;flex-direction:column;justify-content:center;gap:4px}` +
-    `h2{font-size:14pt;font-weight:bold;margin:16px 0 8px}` +
-    `h3{font-size:12pt;font-weight:bold;margin:12px 0 6px}` +
-    `p{margin:4px 0}` +
+    `h2{font-size:14pt;font-weight:bold;margin:8px 0 5px}` +
+    `h3{font-size:12pt;font-weight:bold;margin:10px 0 4px}` +
+    /* p default ≈ 1.15 non-compresso (276/240=1.15); coerente col DOCX */
+    `p{margin:2px 0;line-height:1.15}` +
+    /* data-line: equivalenti CSS per interlinea OOXML */
+    `[data-line="15"]{line-height:1.5}` +
+    `[data-line^="exact"]{line-height:1.17}` +
+    /* data-indent: equivalenti CSS per rientri OOXML (approssimati @96dpi) */
+    `[data-indent="elenco"]{padding-left:28px}` +
+    `[data-indent="destra"]{padding-left:50%}` +
+    `[data-indent="firma"]{padding-left:52%}` +
     `table{border-collapse:collapse;width:100%;margin:8px 0}` +
     `th,td{border:1px solid #999;padding:4px 8px;font-size:10pt}` +
     `table[data-border="none"],table[data-border="none"] td{border:none;padding:6px 4px}` +

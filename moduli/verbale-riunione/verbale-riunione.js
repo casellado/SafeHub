@@ -928,7 +928,7 @@ async function generaCorpoHtmlVerbaleRiunione(d) {
     if (testo.includes('___')) {
       testo = testo.replace('___', c.impresa_id ? _nomeImpresaGen(c.impresa_id) : '______');
     }
-    p.push(`<p>${esc(testo)}</p>`);
+    p.push(`<p data-indent="elenco">${esc(testo)}</p>`);
   });
   if (d.racconto_libero?.trim()) p.push(d.racconto_libero);
 
@@ -979,9 +979,10 @@ async function generaCorpoHtmlVerbaleRiunione(d) {
   );
 
   // Colonna destra: CSE fisso
+  // nome_cognome SOLO (qualifica=ruolo è già in intestazione "Il Coordinatore...")
   const cseBlocco = _bloccoFirmatario(
     'Il Coordinatore per la Sicurezza in fase di Esecuzione',
-    _fmtNome(d.firma_cse?.qualifica, d.firma_cse?.nome_cognome),
+    d.firma_cse?.nome_cognome ?? '',
     cseImg
   );
 

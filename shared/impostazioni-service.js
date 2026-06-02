@@ -44,7 +44,7 @@ const IMPOSTAZIONI_SERVICE = (() => {
       'verbale-riunione':     { codice: 'Mod.VR.01', versione: 'Rev.1 — 2026', titolo: 'Verbale di riunione di coordinamento' },
       'verifica-pos':         { codice: 'Mod.VP.01', versione: 'Rev.1 — 2026', titolo: 'Verifica idoneità POS' },
       'verifica-itp':         { codice: 'Mod.IT.01', versione: 'Rev.1 — 2026', titolo: 'Verifica idoneità tecnico-professionale' },
-      'proposta-sospensione': { codice: 'Mod.RE.01-14', versione: 'Vers.3.0 del 22.01.2024', titolo: 'Proposta di sospensione/allontanamento del CSE' },
+      'proposta-sospensione': { codice: 'Mod.RE.01-14', versione: 'Vers.3.0 del 22.01.2024', titolo: 'Proposta di sospensione/allontanamento del Coordinatore per la Sicurezza in fase di Esecuzione' },
       'non-conformita':       { codice: 'Mod.NC.01', versione: 'Rev.1 — 2026', titolo: 'Non conformità' },
       'evento-incidentale':   { codice: 'Mod.EI.01', versione: 'Rev.1 — 2026', titolo: 'Evento incidentale' },
     },

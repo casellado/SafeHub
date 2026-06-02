@@ -170,12 +170,16 @@ async function _scriviFilePS(dirHandle, nome, file) {
 // Helper: restituisce l'intestazione modulo con override dei placeholder errati di M2.
 // Il ?? non basta perché i vecchi placeholder sono stringhe truthy (non null).
 // Necessario finché l'ambiente non ha il config M2 aggiornato ai valori Mod.RE.01-14.
-const _VECCHI_PLACEHOLDER_PS = new Set(['Mod.PS.01', 'Rev.1 — 2026', 'Proposta di sospensione lavori', 'Rev.1 — 2026']);
+const _VECCHI_PLACEHOLDER_PS = new Set([
+  'Mod.PS.01', 'Rev.1 — 2026',
+  'Proposta di sospensione lavori',
+  'Proposta di sospensione/allontanamento del CSE',  // vecchio titolo abbreviato
+]);
 function _intestazionePS() {
   const m   = IMPOSTAZIONI_SERVICE.modulo('proposta-sospensione');
   const _ok = (v, def) => (!v || _VECCHI_PLACEHOLDER_PS.has(v)) ? def : v;
   return {
-    modulo_titolo:   _ok(m.titolo,   'Proposta di sospensione/allontanamento del CSE'),
+    modulo_titolo:   _ok(m.titolo,   'Proposta di sospensione/allontanamento del Coordinatore per la Sicurezza in fase di Esecuzione'),
     modulo_codice:   _ok(m.codice,   'Mod.RE.01-14'),
     modulo_versione: _ok(m.versione, 'Vers.3.0 del 22.01.2024'),
     logo_aziendale:  IMPOSTAZIONI_SERVICE.logo().png_base64 ?? null,
@@ -674,7 +678,8 @@ async function generaCorpoHtmlPropostaSospensione(d) {
   // 2. Destinatari — allineati a DESTRA come nel modulo ANAS ufficiale
   const dlNome  = esc(d.destinatari?.dl_testo  ?? '');
   const rupNome = esc(d.destinatari?.rup_testo ?? '');
-  const pa = 'data-align="right" style="text-align:right"'; // destra per DOCX e HTML preview
+  // data-indent="destra" → w:ind left=5529 (blocco a destra, come lettera formale ANAS)
+  const pa = 'data-indent="destra"';
   p.push(`<p ${pa}>Al Responsabile dei Lavori</p>`);
   p.push(`<p ${pa}>e, p.c. Al Direttore dei Lavori${dlNome ? '<br>' + dlNome : ''}</p>`);
   if (rupNome) {
@@ -685,9 +690,10 @@ async function generaCorpoHtmlPropostaSospensione(d) {
   const ss  = esc(d.intestazione?.ss ?? '');
   const cod = esc(d.intestazione?.cod_ppm_sil ?? '');
   const lav = esc(d.intestazione?.lavori ?? '');
-  p.push(`<p><strong>Oggetto:</strong> S.S. n° ${ss}</p>`);
-  p.push(`<p><strong>Cod PPM/SIL</strong> ${cod}</p>`);
-  p.push(`<p><strong>Lavori di</strong> ${lav}</p>`);
+  // data-line="exact280" → w:spacing line=280 exact (righe oggetto compatte, come ANAS)
+  p.push(`<p data-line="exact280"><strong>Oggetto:</strong> S.S. n° ${ss}</p>`);
+  p.push(`<p data-line="exact280"><strong>Cod PPM/SIL</strong> ${cod}</p>`);
+  p.push(`<p data-line="exact280"><strong>Lavori di</strong> ${lav}</p>`);
 
   // 4. Titolo art.92 (bold, centrato)
   p.push(`<p data-align="center"><strong>PROPOSTA DI SOSPENSIONE/ALLONTANAMENTO AI SENSI DELL'ART. 92 C.1 LETTERA E) DEL D.LGS. 81/08</strong></p>`);
@@ -700,7 +706,7 @@ async function generaCorpoHtmlPropostaSospensione(d) {
   const conNumero = esc(d.contestazione?.numero ?? '….');
   const conData   = d.contestazione?.data ? esc(UTILS.formatData(d.contestazione.data)) : esc('……');
   p.push(
-    `<p>Con riferimento al cantiere in oggetto e alla contestazione n. ${conNumero} del ${conData} ` +
+    `<p data-line="15">Con riferimento al cantiere in oggetto e alla contestazione n. ${conNumero} del ${conData} ` +
     `all'impresa affidataria, il sottoscritto <strong>${cseNome}</strong>, ` +
     `in qualità di Coordinatore per la Sicurezza in fase di Esecuzione dei lavori, con la presente</p>`
   );
@@ -710,7 +716,8 @@ async function generaCorpoHtmlPropostaSospensione(d) {
   p.push(`<p>di adottare il seguente provvedimento:</p>`);
 
   const prov = d.provvedimenti ?? {};
-  p.push(`<p>${chk(prov.sospensione_lavori)} Sospensione dei lavori</p>`);
+  // data-indent="elenco" → w:ind left=567 hanging=283 (voci con casella rientrate, come ANAS)
+  p.push(`<p data-indent="elenco">${chk(prov.sospensione_lavori)} Sospensione dei lavori</p>`);
 
   const _valProvv = (obj) => {
     const v = obj?.impresa_id
@@ -719,18 +726,18 @@ async function generaCorpoHtmlPropostaSospensione(d) {
     return v ? ` ${esc(v)}` : ' ______';
   };
 
-  p.push(`<p>${chk(prov.allontanamento_imprese?.flag)} Allontanamento della/e impresa/e${_valProvv(prov.allontanamento_imprese)}</p>`);
-  p.push(`<p>${chk(prov.allontanamento_lav_autonomi?.flag)} Allontanamento del/i lavoratore/i autonomo/i${_valProvv(prov.allontanamento_lav_autonomi)}</p>`);
-  p.push(`<p>${chk(prov.risoluzione_contratto?.flag)} Risoluzione del contratto con l'impresa/il lavoratore autonomo${_valProvv(prov.risoluzione_contratto)}</p>`);
+  p.push(`<p data-indent="elenco">${chk(prov.allontanamento_imprese?.flag)} Allontanamento della/e impresa/e${_valProvv(prov.allontanamento_imprese)}</p>`);
+  p.push(`<p data-indent="elenco">${chk(prov.allontanamento_lav_autonomi?.flag)} Allontanamento del/i lavoratore/i autonomo/i${_valProvv(prov.allontanamento_lav_autonomi)}</p>`);
+  p.push(`<p data-indent="elenco">${chk(prov.risoluzione_contratto?.flag)} Risoluzione del contratto con l'impresa/il lavoratore autonomo${_valProvv(prov.risoluzione_contratto)}</p>`);
 
   // 7. Inosservanze (5 voci, tutte mostrate)
   p.push(`<p>in quanto ha riscontrato le seguenti gravi inosservanze alle disposizioni di cui:</p>`);
   const inoss = d.inosservanze ?? {};
-  p.push(`<p>${chk(inoss.art_94)} all'articolo 94 del D.Lgs 81/08,</p>`);
-  p.push(`<p>${chk(inoss.art_95)} all'articolo 95 del D.Lgs 81/08</p>`);
-  p.push(`<p>${chk(inoss.art_96)} all'articolo 96 del D.Lgs 81/08</p>`);
-  p.push(`<p>${chk(inoss.art_97_c1)} all'articolo 97 comma 1 del D.Lgs 81/08</p>`);
-  p.push(`<p>${chk(inoss.prescrizioni_art_100)} alle prescrizioni del piano di cui all'articolo 100 del D.Lgs 81/08</p>`);
+  p.push(`<p data-indent="elenco">${chk(inoss.art_94)} all'articolo 94 del D.Lgs 81/08,</p>`);
+  p.push(`<p data-indent="elenco">${chk(inoss.art_95)} all'articolo 95 del D.Lgs 81/08</p>`);
+  p.push(`<p data-indent="elenco">${chk(inoss.art_96)} all'articolo 96 del D.Lgs 81/08</p>`);
+  p.push(`<p data-indent="elenco">${chk(inoss.art_97_c1)} all'articolo 97 comma 1 del D.Lgs 81/08</p>`);
+  p.push(`<p data-indent="elenco">${chk(inoss.prescrizioni_art_100)} alle prescrizioni del piano di cui all'articolo 100 del D.Lgs 81/08</p>`);
 
   // 8. Relativamente a + editor ricco
   p.push(`<p>relativamente a:</p>`);
@@ -739,7 +746,8 @@ async function generaCorpoHtmlPropostaSospensione(d) {
   // 9. Firma CSE — blocco semplice allineato a DESTRA (no tabella: firma unica)
   // Schema: "Il Coordinatore per l'Esecuzione" / nome / firma
   // data-align="right" → DOCX (M6 p[jc right]); style → HTML preview
-  const pr = 'data-align="right" style="text-align:right"';
+  // Firma: data-indent=firma (w:ind left=5670) + data-align=center (centrato nel blocco destro)
+  const pr = 'data-indent="firma" data-align="center" style="padding-left:52%;text-align:center"';
   p.push(`<p ${pr}>Il Coordinatore per l'Esecuzione</p>`);
   p.push(`<p ${pr}>${cseNome}</p>`);
   if (cseImg) {
