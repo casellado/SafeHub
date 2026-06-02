@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION ogni volta che cambiano asset locali cachati (CLAUDE.md §Git).
  */
 
-const CACHE_VERSION = 'safehub-archivio-v23';  // bump: M13 Proposta Sospensione CSE
+const CACHE_VERSION = 'safehub-archivio-v24';  // bump: M15 Disposizione RL
 
 const ASSET_LOCALI = [
   './',
@@ -41,6 +41,7 @@ const ASSET_LOCALI = [
   './moduli/anagrafica/export-safecant.js',
   './moduli/verbale-riunione/verbale-riunione.js',
   './moduli/proposta-sospensione/proposta-sospensione.js',
+  './moduli/disposizione-rl/disposizione-rl.js',
   './templates/template.docx',
   './assets/icon-192.png',
   './assets/icon-512.png',

@@ -663,6 +663,12 @@ function PropostaSospensione() {
 // Lettera formale fedele al Mod.RE.01-14. Solo tag del sottoinsieme M6.
 // NON ripete il titolo nel corpo (è nell'header del template Word).
 
+// Stessa funzione del verbale: aggiunge data-line="15" ai <p> dell'editor privi dell'attributo.
+function _applicaInterlinea15PS(html) {
+  if (!html) return html;
+  return html.replace(/<p(?![^>]*data-line)([^>]*)>/g, '<p data-line="15"$1>');
+}
+
 async function generaCorpoHtmlPropostaSospensione(d) {
   const esc = (s) => UTILS.escapeHtml(s ?? '');
   const p   = [];
@@ -741,7 +747,7 @@ async function generaCorpoHtmlPropostaSospensione(d) {
 
   // 8. Relativamente a + editor ricco
   p.push(`<p>relativamente a:</p>`);
-  if (d.relativamente_a?.trim()) p.push(d.relativamente_a);
+  if (d.relativamente_a?.trim()) p.push(_applicaInterlinea15PS(d.relativamente_a));
 
   // 9. Firma CSE — blocco semplice allineato a DESTRA (no tabella: firma unica)
   // Schema: "Il Coordinatore per l'Esecuzione" / nome / firma

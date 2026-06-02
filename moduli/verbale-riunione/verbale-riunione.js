@@ -828,6 +828,14 @@ async function _scriviFile(dirHandle, nome, file) {
   await w.close();
 }
 
+// Aggiunge data-line="15" ai <p> privi di data-line nell'HTML dell'editor ricco.
+// I testi digitati dal PO nei campi narrativi non hanno l'attributo: questo li porta
+// a interlinea 1,5 coerente con il resto del documento (M6 legge data-line).
+function _applicaInterlinea15(html) {
+  if (!html) return html;
+  return html.replace(/<p(?![^>]*data-line)([^>]*)>/g, '<p data-line="15"$1>');
+}
+
 // ── generaCorpoHtmlVerbaleRiunione ────────────────────────────────────────────
 // Funzione pura ASYNC: dati → stringa HTML con solo tag supportati da M6.
 // NON include il promemoria normativo (quello è UI-only).
@@ -930,15 +938,15 @@ async function generaCorpoHtmlVerbaleRiunione(d) {
     }
     p.push(`<p data-indent="elenco">${esc(testo)}</p>`);
   });
-  if (d.racconto_libero?.trim()) p.push(d.racconto_libero);
+  if (d.racconto_libero?.trim()) p.push(_applicaInterlinea15(d.racconto_libero));
 
   // ── 5. CRITICITÀ ─────────────────────────────────────────────────────────
   p.push('<h3>Criticità riscontrate ed Osservazioni Emerse</h3>');
-  if (d.criticita_osservazioni?.trim()) p.push(d.criticita_osservazioni);
+  if (d.criticita_osservazioni?.trim()) p.push(_applicaInterlinea15(d.criticita_osservazioni));
 
   // ── 6. ISTRUZIONI E DECISIONI ─────────────────────────────────────────────
   p.push('<h3>Istruzioni operative e Decisioni Intraprese</h3>');
-  if (d.istruzioni_decisioni?.trim()) p.push(d.istruzioni_decisioni);
+  if (d.istruzioni_decisioni?.trim()) p.push(_applicaInterlinea15(d.istruzioni_decisioni));
 
   // ── 7. FIRME — 3 colonne senza bordi, contenuto centrato ───────────────────
   // Schema per ogni firmatario (schema PO):

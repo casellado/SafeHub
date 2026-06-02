@@ -56,6 +56,7 @@
   <script src="moduli/anagrafica/export-safecant.js"></script>
   <script src="moduli/verbale-riunione/verbale-riunione.js"></script>
   <script src="moduli/proposta-sospensione/proposta-sospensione.js"></script>
+  <script src="moduli/disposizione-rl/disposizione-rl.js"></script>
 </head>
 
 <body x-data x-cloak>
@@ -298,23 +299,8 @@
           <span aria-hidden="true">🚨</span> Eventi Incidentali
         </button>
 
-        <!-- DOCUMENTAZIONE -->
+        <!-- DOCUMENTAZIONE — solo cruscotto di monitoraggio conformità (non un documento prodotto) -->
         <div class="nav-sezione" role="presentation">Documentazione</div>
-        <button class="nav-voce" @click="navigaA('verifica-pos')"
-                :class="{'attiva': $store.app.moduloAttivo === 'verifica-pos'}"
-                :aria-current="$store.app.moduloAttivo === 'verifica-pos' ? 'page' : null">
-          <span aria-hidden="true">✅</span> Verifica POS / ITP
-        </button>
-        <button class="nav-voce" @click="navigaA('proposte-sospensione')"
-                :class="{'attiva': $store.app.moduloAttivo === 'proposte-sospensione'}"
-                :aria-current="$store.app.moduloAttivo === 'proposte-sospensione' ? 'page' : null">
-          <span aria-hidden="true">⏸</span> Proposte Sospensione
-        </button>
-        <button class="nav-voce" @click="navigaA('sospensioni-rl')"
-                :class="{'attiva': $store.app.moduloAttivo === 'sospensioni-rl'}"
-                :aria-current="$store.app.moduloAttivo === 'sospensioni-rl' ? 'page' : null">
-          <span aria-hidden="true">📥</span> Sospensioni RL
-        </button>
         <button class="nav-voce" @click="navigaA('conformita-documenti')"
                 :class="{'attiva': $store.app.moduloAttivo === 'conformita-documenti'}"
                 :aria-current="$store.app.moduloAttivo === 'conformita-documenti' ? 'page' : null">
@@ -332,6 +318,21 @@
                 :class="{'attiva': $store.app.moduloAttivo === 'proposta-sospensione'}"
                 :aria-current="$store.app.moduloAttivo === 'proposta-sospensione' ? 'page' : null">
           <span aria-hidden="true">✉</span> Proposta Sospensione
+        </button>
+        <button class="nav-voce" @click="navigaA('disposizione-rl')"
+                :class="{'attiva': $store.app.moduloAttivo === 'disposizione-rl'}"
+                :aria-current="$store.app.moduloAttivo === 'disposizione-rl' ? 'page' : null">
+          <span aria-hidden="true">📋</span> Disposizione RL
+        </button>
+        <button class="nav-voce" @click="navigaA('verifica-pos')"
+                :class="{'attiva': $store.app.moduloAttivo === 'verifica-pos'}"
+                :aria-current="$store.app.moduloAttivo === 'verifica-pos' ? 'page' : null">
+          <span aria-hidden="true">✅</span> Verifica POS / ITP
+        </button>
+        <button class="nav-voce" @click="navigaA('sospensioni-rl')"
+                :class="{'attiva': $store.app.moduloAttivo === 'sospensioni-rl'}"
+                :aria-current="$store.app.moduloAttivo === 'sospensioni-rl' ? 'page' : null">
+          <span aria-hidden="true">📥</span> Sospensioni RL
         </button>
         <button class="nav-voce sospesa"
                 disabled aria-disabled="true"
