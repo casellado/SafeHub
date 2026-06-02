@@ -1,5 +1,5 @@
 # TASK — Stato di avanzamento SafeHub Archivio
-## Documento di sessione · aggiornato 01 giugno 2026
+## Documento di sessione · aggiornato 02 giugno 2026
 
 > Riferimento rapido per rientrare nel contesto a inizio sessione.
 > Per il design completo: `@docs/00-INDICE-Biblioteca-SafeHub.md`.
@@ -13,6 +13,7 @@
 |---|---|---|
 | `v0.4.0-anagrafica-lavoratori` | `e0f9332` | M1-M3 + M4 F1-F2, drawer condiviso |
 | `v0.5.0-anagrafica-completa`   | `1944bfd` | **M4 completo F1-F7**, aggancio SafeCant chiuso |
+| `v0.6.0-verbale-riunione`      | `f7d1227` | **M6 + Verbale Riunione (pilota Flusso B)**, collaudato |
 
 Per tornare a un punto: `git checkout <tag>` (detached HEAD, sola lettura).
 Per sviluppare da un punto: `git checkout -b nome-branch <tag>`.
@@ -23,82 +24,70 @@ Per sviluppare da un punto: `git checkout -b nome-branch <tag>`.
 
 ### ✅ COMPLETATI E COLLAUDATI
 
-| Modulo | Fase | Commit/tag | Note |
+| Modulo | Fase | Tag/commit | Note |
 |---|---|---|---|
 | **M1** Fondazione | — | v0.4.0 | PWA, FSA, IDB, cantiere corrente, shell |
 | **M2** Impostazioni | — | v0.4.0 | Identità CSE, firma PNG, logo, codici moduli, soglie scadenza |
 | **M3** Gestione Cantieri | — | v0.4.0 | Scaffolding 16 cartelle, cruscotto, scheda lotto + ruoli FK |
-| **M6** Motore DOCX | ✅ | v0.6.0 | `m6-motore-docx.js`; vendor/ locale; collaudato |
-| **Verbale Riunione** | **da collaudare** | — | Pilota Flusso B; `moduli/verbale-riunione/` |
-| **M4** Anagrafica | **COMPLETO** | v0.5.0 | Tutte e 7 le fasi: |
-| └─ F1 Imprese | | | Conformità §12, patente crediti, drawer centralizzato |
-| └─ F2 Lavoratori | | | Scadenze idoneità/formazione/abilitazioni ASR |
-| └─ F3 Mezzi/Attrezzature | | | Verifiche INAIL, PiMUS, 2 tab |
-| └─ F4 Noli | | | Freddo/caldo, collegamento bidirezionale nolo↔mezzo |
-| └─ F5 Persone | | | Committente + Terzi; aggancio M3 ruoli istituzionali |
-| └─ F6 Cruscotto Scadenze | | | Vista aggregata cantiere corrente |
-| └─ F7 Export SafeCant | | | Variante leggera, badge modifiche, schema identico |
+| **M4** Anagrafica | COMPLETO | v0.5.0 | Tutte e 7 le fasi; export SafeCant (variante leggera) |
+| **M6** Motore DOCX | COMPLETO | v0.6.0 | HTML+DOCX; no-border/align tables; vendor/ locale; test-m6.html |
+| **Verbale Riunione** | COMPLETO | v0.6.0 | Pilota Flusso B — vedi dettaglio sotto |
+
+#### Dettaglio Verbale di Riunione (pilota Flusso B)
+- Layout fedele al Mod.RE.01-10 ANAS: intestazione righe testo, tabella dati/tipo/presenti, argomenti, criticità, decisioni
+- Firme: 3 blocchi affiancati (committente | imprese | CSE), canvas fisso 210×80px, no bordi, centrate
+- Editor ricco (grassetto/corsivo/allineamento) sui campi narrativi
+- Promemoria normativo UI-only (non entra nel DOCX)
+- Auto-save debounce 8s + indicatore stato
+- Ciclo completo BOZZA→FINALIZZATO_DA_PROTOCOLLARE→PROTOCOLLATO
+- Vista Protocollati con link FSA per aprire PDF/lettera archiviati
+- Pre-popolamento intestazione da `ANAGRAFICA_SERVICE.carica()` (dati freschi)
+- Storage: `02_Verbali-Riunione/Bozze/` + `Protocollati/`
 
 ### 🔧 INFRASTRUTTURA
 
 | Componente | Stato | Note |
 |---|---|---|
-| SW dev-off/prod-on | ✅ | localhost = no SW; GitHub Pages = SW v18 |
-| Drawer centralizzato | ✅ | `.drawer/.drawer-body` ecc. in styles.css (no inline display:flex) |
+| SW dev-off/prod-on | ✅ | localhost = no SW (IS_DEV); SW v22 su GitHub Pages |
+| Server locale no-cache | ✅ | `avvia.sh` + `server.py` con Cache-Control: no-store |
+| Drawer centralizzato | ✅ | `.drawer/.drawer-body` ecc. in styles.css |
 | Firma autore | ✅ | "by — Geom. Dogano Casella" in sidebar |
 | GitHub Pages | ✅ | https://casellado.github.io/SafeHub/ |
+| cantieri-service.js | ✅ | `aggiornaDatiLotto()` ricarica `ANAGRAFICA_SERVICE` dopo ogni salvataggio |
 
 ---
 
-## ⬜ PROSSIMI PASSI (ordine consigliato)
+## ⬜ PROSSIMI PASSI (per la prossima sessione)
 
-### 🧪 IMMEDIATO — Collaudo M6 (test-m6.html)
-Aprire `test-m6.html` nel browser (server locale), fare:
-1. Verificare badge dipendenze (PizZip ✓, Docxtemplater ✓, MOTORE_DOCX ✓, template ✓)
-2. "Anteprima HTML" → vedere la preview nel iframe
-3. "Scarica DOCX" → aprire in LibreOffice/Word e verificare checklist §8
+### (a) Flusso B — variazioni del pilota Verbale di Riunione
+Il pilota è completo. I prossimi documenti riusano lo stesso pattern (BOZZA→FINALIZZATO→PROTOCOLLATO + M6), cambia solo il `generaCorpoHtml<Tipo>()` e il modello dati specifico.
+Ordine consigliato (dal design `@docs/FlussoB-Documenti-Prodotti-M12-M16.md`):
+- **M13 Proposta Sospensione CSE** — simile al verbale, 2 fattispecie (lett.e e lett.f)
+- **M14 Non Conformità** — ciclo speciale APERTA→IN-RISOLUZIONE→CHIUSA + scadenza monitorata; nasce spesso da nc_drafts sopralluogo
+- **M15 Evento Incidentale** — near-miss/infortuni, dati sensibili
+- **M16 ODS Inviati** — speculare a ODS Ricevuti (M20, Flusso C)
+- **M12 Verifica POS/ITP** — aggancio anagrafica + POS Documentale (M21)
 
-Se il collaudo ha successo → creare tag `v0.6.0-m6-motore-docx`.
+### (b) SafeCant allineamento + fix
+- **Fix bug nome compilatore**: redattore arriva con nome/qualifica vuoti (causa: identità configurata sul device)
+- **Import anagrafica**: SafeCant deve leggere il file leggero prodotto da M4 F7 (`SafeHub-Anagrafiche/`)
+- **Chiude il giro end-to-end**: Archivio produce anagrafica → SafeCant importa → ispettore seleziona imprese/lavoratori
+- Design: `@docs/SafeHub.md §5.2`
 
----
+### (c) M17 Flusso C — pilota (Notifica Preliminare)
+- Upload PDF + metadati (protocollo, data, lettera) — nessun motore documenti
+- Pattern semplice: cruscotto con apri/stampa/download
+- Sblocca poi M18-M21 (variazioni) — design: `@docs/M17-Notifica-Preliminare-FlussoC.md`
 
-### Opzione A — SafeCant allineamento + fix (aggancio immediato)
-- **Dipende da:** M4 F7 ✅ — il lato Archivio è pronto
-- **Fix bug nome compilatore:** indipendente, si può fare subito (audit + fix veloce)
-- **Import anagrafica:** legge il file leggero prodotto da M4 F7
-- **Design:** `@docs/SafeCant-Allineamento-e-Fix.md`
-- **Risultato:** giro end-to-end funzionante Archivio → SafeCant → Verbale
+### (d) M25 Cruscotto generale multi-cantiere
+- Aggrega scadenze critiche di tutti i cantieri in una vista
+- Dipende da cantieri reali popolati — rimandato a dopo (b)
+- Design: `@docs/Moduli-Supporto-M23-M26.md`
 
-### Opzione B — M6 Motore DOCX
-- Sblocca tutti i Flussi A/B/C
-- È il pezzo tecnicamente più complesso rimasto (convertitore HTML→OOXML)
-- **Design:** `@docs/M6-Motore-DOCX.md`
-- Stack: docxtemplater core + `{@rawXml}` + `docxtemplater-image-module-free` (tutto MIT)
-- Dipende da: M2 (logo/codici) ✅
-- **Template Word UNICO** per tutti i documenti Flusso B — per ogni tipo cambia solo `generaCorpoHtml<Tipo>()`
-- **⚠ IMPORTANTE:** quando si costruisce M6 e i documenti Flusso B, il PO fornirà il testo/layout reale di ciascun modulo ufficiale, documento per documento. I documenti generati devono riprodurre i modelli veri del PO, NON fac-simili inventati.
-
-#### Perimetro Operatività — vista trasversale AI M26 (definito dal PO)
-I documenti del 'lavoro vivo' su cui l'AI assisterà. Restano archiviati nei rispettivi flussi, questa è la lista di riferimento per M6 e M26:
-
-| # | Documento | Flusso | Modulo | Note |
-|---|---|---|---|---|
-| 1 | Verbale di sopralluogo | Flusso A | M7-M10 | Arriva da SafeCant |
-| 2 | Verbale riunione coordinamento | Flusso B | M11 (pilota) | Il PO lo produce |
-| 3 | Verifica idoneità POS | Flusso B | M12 | Il PO la produce |
-| 4 | Verifica ITP | Flusso B | M12 (sottotipo) | Il PO la produce |
-| 5 | Proposta sospensione CSE | Flusso B | M13 | Il PO la produce |
-| 6 | Notifica preliminare | Flusso C | M17 | Il PO la prepara, archiviata in C |
-| 7 | Disposizione/sospensione RL | Flusso C | M19 | La emette il RL, il PO la riceve |
-
-### Opzione C — Flusso C (documenti ricevuti)
-- M17 pilota (Notifica Preliminare): upload PDF + metadati, nessun motore documenti
-- Buono per avanzare velocemente su un flusso reale
-- **Design:** `@docs/M17-Notifica-Preliminare-FlussoC.md`
-
-### Opzione D — M25 Cruscotto generale multi-cantiere (Livello B)
-- Rimandato a dopo avere cantieri reali popolati
-- **Design:** `@docs/Moduli-Supporto-M23-M26.md` (M25)
+### (e) M26 AI locale (bridge Ollama)
+- 3 livelli: procedure (L1), RAG D.Lgs 81/08 (L2), contesto cantiere (L3)
+- Dipende da corpus di documenti generati (Flusso B/C) — ultimo da costruire
+- Design: `@docs/Moduli-Supporto-M23-M26.md`
 
 ---
 
@@ -106,7 +95,7 @@ I documenti del 'lavoro vivo' su cui l'AI assisterà. Restano archiviati nei ris
 
 **Schema anagrafica:**
 - Campo: `direttoreOperativoId` (non `cseDelegatoId`) — correzione normativa 01/06/2026
-- Migrazione soft attiva: file vecchi con `cseDelegatoId` vengono autocorretti alla prima lettura
+- Migrazione soft attiva in `ANAGRAFICA_SERVICE.carica()` e `cantieri-service.js`
 - Fonte canonica: `@docs/schema-anagrafica-canonico-v2.md`
 
 **Drawer pattern:**
@@ -116,31 +105,34 @@ I documenti del 'lavoro vivo' su cui l'AI assisterà. Restano archiviati nei ris
 
 **Service Worker:**
 - Su localhost: **DISATTIVATO** (IS_DEV in alpine-init.js). F5 = sempre file freschi.
-- Su GitHub Pages: SW v18 attivo, aggiornamento automatico via `controllerchange`
+- Server locale: `avvia.sh` usa `server.py` con `Cache-Control: no-store`
+- Su GitHub Pages: SW v22 attivo, aggiornamento automatico via `controllerchange`
+
+**Pattern pilota Flusso B (dal Verbale Riunione):**
+- Componente Alpine a tab (Dati / Presenti / Contenuti / Firme), no service separato
+- Auto-save debounce 8s + indicatore stato
+- `generaCorpoHtml<Tipo>()` pura async → M6 per HTML+DOCX
+- Firma integrata nel record presenza (no desincronizzazione)
+- `<table data-border="none">` + `<td data-align="center">` per la sezione firme
+- `_scalafirma(src, 210, 80)`: canvas fisso per firme uniformi e non distorte
+- Storage: `<NN>_<Categoria>/Bozze/<uuid>.json` + `Protocollati/<numero>.json`
+- Vista Protocollati: toggle nella lista, `apriFileProt()` via FSA object URL
 
 **Export SafeCant:**
-- Handle `SafeHub-Anagrafiche/` in IDB key `anagrafiche_handle` (separato da `root_handle`)
+- Handle `SafeHub-Anagrafiche/` in IDB key `anagrafiche_handle`
 - File: `anagrafica_<cantiereId>_YYYY-MM-DD.json`
 - Funzione: `ANAGRAFICA_SERVICE.esportaLeggera()` — ricorsiva, un solo passo
 
 **Merge parziale:**
 - Ogni salvataggio M4 tocca SOLO la collezione indicata (`salvaCollezione('imprese', ...)`)
-- Il file ha sempre tutte le 8 collezioni
 
-**"Operatività" = raggruppamento di MENU, non struttura dati — decisione finale PO+CTO del 02/06/2026:**
-- I documenti del lavoro vivo del PO (Flusso A + documenti che il PO produce: verbale riunione, verifica POS/ITP, proposta sospensione CSE, ecc.) appaiono raggruppati sotto la voce di menu **"Operatività"**, perché è più immediato trovare dove si fa il lavoro.
-- **MAI cartelle o pattern di salvataggio cambiano**: ogni documento resta nella sua cartella tipizzata (`02_`, `03_`, `04_`, …) e segue il pattern del suo flusso (B = BOZZA→FINALIZZATO→PROTOCOLLATO; C = ricevuto/archiviato; A = sopralluogo interno). Nessuna riorganizzazione.
-- "Operatività" è una **VISTA di navigazione** (come il PO ragiona), agganciata sotto al modello a flussi già esistente. Coerente con `safehub-archivio-architettura-sezioni.md`: menu ≠ flusso.
-- Conferma collocazione già annotata (31/05): Verifica POS e Verifica ITP — nascono B, si archiviano come C — stanno in Operatività nel menu, pattern di archiviazione C. Allineato.
-- **Applicazione pratica**: "metti in Operatività" = voce di menu. Non tocca cartelle né pattern, non tocca nulla di già costruito (M1–M4, M6). Si applica quando si costruisce ciascun documento.
+**"Operatività" = raggruppamento di MENU, non struttura dati (02/06/2026):**
+- "Metti in Operatività" = voce di menu. Cartelle e pattern di salvataggio NON cambiano.
 
-**Firme nel Verbale di Riunione (pilota Flusso B) — decisione PO+CTO del 02/06/2026:**
-Da applicare quando si costruirà il modulo Verbale di Riunione. Non riguarda M6 (il motore è indifferente alla provenienza delle firme).
-- In SafeHub TUTTI i firmatari (CSE redattore, presenti, ispettore verbalizzante) possono firmare **sia via canvas sia via upload PNG**. Motivazione: in ufficio un firmatario può mandare la firma in differita dopo la riunione — serve poter completare il verbale caricando il PNG.
-- Differenza voluta con SafeCant: SafeCant (campo, iPad, tempo reale) → ispettore firma permanente o canvas, presenti solo canvas. SafeHub (ufficio, finalizzazione differita) → tutti possono anche upload PNG. I contesti d'uso diversi giustificano il comportamento diverso.
-- Riuso: upload PNG è già pattern esistente (M2). Estenderlo a tutti i firmatari del verbale non è lavoro nuovo. Le firme finiscono nel corpo_html come `<img base64>` — M6 le impagina senza sapere come sono state ottenute.
-- **Possibilità futura (NON ora):** valutare se distinguere per ogni firma se apposta in presenza (canvas) o caricata in differita (upload PNG), per tracciabilità/valore probatorio. Aggiunta fattibile sul pattern esistente se servirà; non si costruisce adesso.
+**Firme nel Verbale (02/06/2026):**
+- In SafeHub TUTTI i firmatari: canvas O upload PNG (firma differita ammessa)
+- Possibilità futura (non ora): tracciare canvas vs upload per valore probatorio
 
 ---
 
-*Aggiornato al 02/06/2026 — M6 scritto (da collaudare). Decisione firme Verbale Riunione annotata.*
+*Aggiornato al 02/06/2026 — v0.6.0 taggato. M6 + Verbale Riunione completi e collaudati.*
