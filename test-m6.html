@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Banco di prova M6 — Motore DOCX</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 900px; margin: 32px auto; padding: 16px; font-size: 13px; }
+    h1   { font-size: 18px; color: #1d4ed8; }
+    h2   { font-size: 15px; margin-top: 24px; color: #374151; }
+    .card { border: 1px solid #d1d5db; border-radius: 6px; padding: 16px; margin: 16px 0; }
+    .btn  { padding: 8px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+    .btn-html  { background: #2563eb; color: #fff; }
+    .btn-docx  { background: #16a34a; color: #fff; margin-left: 8px; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .status  { margin-top: 10px; font-size: 12px; color: #6b7280; min-height: 1.5em; }
+    .status.ok  { color: #16a34a; }
+    .status.err { color: #dc2626; }
+    #preview-area { border: 2px dashed #d1d5db; border-radius: 6px; margin-top: 16px; min-height: 200px; background: #f9fafb; }
+    #preview-area iframe { width: 100%; height: 500px; border: none; border-radius: 6px; }
+    details { margin-top: 12px; }
+    summary { cursor: pointer; font-weight: 600; color: #374151; }
+    pre  { background: #f3f4f6; border-radius: 4px; padding: 12px; font-size: 11px; overflow: auto; max-height: 220px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+    .badge-ok  { background: #dcfce7; color: #166534; }
+    .badge-err { background: #fee2e2; color: #991b1b; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  </style>
+</head>
+<body>
+
+<h1>🧪 Banco di prova M6 — Motore DOCX SafeHub Archivio</h1>
+<p>Questo file è indipendente dall'app principale. Testa il convertitore HTML→OOXML coprendo <strong>tutti i tag supportati</strong>.</p>
+
+<!-- Librerie locali — caricate da vendor/ per funzionare offline -->
+<script src="vendor/pizzip.min.js"></script>
+<script src="vendor/docxtemplater.js"></script>
+
+<!-- Mock minimale dei servizi richiesti da m6-motore-docx.js -->
+<script>
+// Mock ERRORI per test standalone
+const ERRORI = {
+  gestisciErrore: (ctx, err) => console.error(`[ERRORI] ${ctx}:`, err),
+};
+// Mock IMPOSTAZIONI_SERVICE (non usato direttamente da M6, ma potrebbe essere referenziato)
+const IMPOSTAZIONI_SERVICE = {
+  get: () => ({}),
+};
+</script>
+
+<!-- Carica il motore M6 -->
+<script src="shared/m6-motore-docx.js"></script>
+
+<script>
+// ── Corpo HTML di test — copre TUTTI i tag supportati ────────────────────────
+// Simulazione di firma PNG minima (quadratino blu trasp. 48×16 px)
+const FIRMA_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAgCAYAAABU1PscAAAAAXNSR0IArs4c6QAAAAlwSFlzAAAOxAAADsQBlSsvUwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAACuSURBVFjD7ZZBCsAgDARn//9n7cGHOOCiZG/r4hgPJe0Q1swEQBiGIUkqSZIkSZIkSZIkSUk6/x5jjDHmJSIiIiJSIiIiIiIiIiLiICIiIiIiIiIiIiIiIiJiICIiIiIiIiIiIiIiIiJiICIiIiIiIiIiIiIiImIgIiIiIiIiIiIiIiIiImIgIiIiIiIiIiIiIiIiImIgIiIiIiIiIiIiIiL+xwMAAP//p7sBhwAAACFJREFU7dbBEQAgDMPAfvnXpw0b9gGdOQGqz9D0BIQhBQAAAABJRU5ErkJggg==';
+
+const CORPO_HTML = `
+<h2>1. VERBALE DI RIUNIONE DI COORDINAMENTO</h2>
+
+<p>In data <strong>02/06/2026</strong>, alle ore <em>10:00</em>, si è tenuta presso il cantiere CZ399
+la riunione di coordinamento convocata dal CSE.</p>
+
+<h3>1.1 Presenti alla riunione</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Cognome e Nome</th>
+      <th>Qualifica</th>
+      <th>Impresa</th>
+      <th>Firma</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Rossi Mario</td>
+      <td>CSE Titolare</td>
+      <td>Committente</td>
+      <td><img src="${FIRMA_BASE64}" alt="firma Rossi"></td>
+    </tr>
+    <tr>
+      <td>Bianchi Luca</td>
+      <td>Direttore Lavori</td>
+      <td>Committente</td>
+      <td></td>
+    </tr>
+    <tr>
+      <td>Verdi Giuseppe</td>
+      <td>Responsabile Cantiere</td>
+      <td>Impresa Alfa S.r.l.</td>
+      <td><img src="${FIRMA_BASE64}" alt="firma Verdi"></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>1.2 Ordine del giorno</h3>
+<p data-align="left">1. Avanzamento lavori e programmazione fase successiva</p>
+<p data-align="left">2. Verifica non conformità aperte (NC-2026-003)</p>
+<p data-align="left">3. Scadenze documenti — DURC Impresa Alfa (scade 15/06/2026)</p>
+
+<h2>2. VERBALE DELLA RIUNIONE</h2>
+
+<h3>2.1 Avanzamento lavori</h3>
+<p>I lavori procedono <strong>regolarmente</strong>. La progressiva di avanzamento al 01/06/2026 è
+km 3+440. La media giornaliera è di <em>circa 35 ml/giorno</em>.</p>
+
+<p data-align="center">— segue a pagina successiva —</p>
+
+<h3>2.2 Non conformità</h3>
+<p>La NC-2026-003 relativa al mancato uso dei DPI risulta <strong>non ancora risolta</strong>.
+Il responsabile di cantiere si impegna alla risoluzione entro il <strong>10/06/2026</strong>.</p>
+<p>Qualora la NC non venga risolta entro tale data, il CSE provvederà ad emettere formale
+proposta di sospensione lavori ai sensi dell'art. 92 c.1 lett. e del D.Lgs 81/2008.</p>
+
+<h3>2.3 Scadenze</h3>
+<table>
+  <thead>
+    <tr><th>Documento</th><th>Soggetto</th><th>Scadenza</th><th>Stato</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>DURC</td><td>Impresa Alfa S.r.l.</td><td>15/06/2026</td><td><strong>⚠ In scadenza</strong></td></tr>
+    <tr><td>Patente crediti</td><td>Impresa Alfa S.r.l.</td><td>N/D</td><td>Attiva</td></tr>
+    <tr><td>Idoneità sanitaria</td><td>Rossi Marco (muratore)</td><td>30/06/2026</td><td>In scadenza</td></tr>
+  </tbody>
+</table>
+
+<h2>3. FIRME</h2>
+
+<p data-align="left">Il Coordinatore per la Sicurezza in fase di Esecuzione</p>
+<p><img src="${FIRMA_BASE64}" alt="firma CSE"></p>
+<p><em>Geom. Mario Rossi — CSE Titolare</em></p>
+`;
+
+// ── Header di test ───────────────────────────────────────────────────────────
+// Usa un logo PNG minimo (quadratino blu 32×32)
+const LOGO_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAAlwSFlzAAAOxAAADsQBlSsvUwAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAABESURBVFjD7dAxAQAgDAOx+m++jiEEqNiA3rlwvSMAAAAAAAAAAAAAAAAAwA3sBQAAAAAAAAAAAAAAAACADV4H5gAN6AhZP0YAAAAASUVORK5CYII=';
+
+const TEST_HEADER = {
+  modulo_titolo:   'Verbale di Riunione di Coordinamento',
+  modulo_codice:   'Mod.VR.01',
+  modulo_versione: 'Rev.1 — 06/2026',
+  logo_aziendale:  LOGO_BASE64,
+};
+</script>
+
+<!-- UI ─────────────────────────────────────────────────────────────────── -->
+
+<div class="card">
+  <h2>Controllo caricamento dipendenze</h2>
+  <div class="grid">
+    <div>
+      <span class="badge" id="badge-pizzip">…</span> PizZip
+    </div>
+    <div>
+      <span class="badge" id="badge-docxtemplater">…</span> Docxtemplater
+    </div>
+    <div>
+      <span class="badge" id="badge-m6">…</span> MOTORE_DOCX
+    </div>
+    <div>
+      <span class="badge" id="badge-template">…</span> templates/template.docx
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Test 1 — Anteprima HTML</h2>
+  <p>Genera l'anteprima HTML <strong>senza</strong> il template Word. Deve essere istantaneo.</p>
+  <button class="btn btn-html" onclick="testHtml()">▶ Anteprima HTML</button>
+  <div class="status" id="status-html"></div>
+  <div id="preview-area" style="display:none"></div>
+</div>
+
+<div class="card">
+  <h2>Test 2 — Scarica DOCX</h2>
+  <p>Genera il DOCX dal template reale. Copre: intestazione con logo/codici, corpo con h2/h3/p/table/img/<strong>strong</strong>/<em>em</em>/data-align.</p>
+  <button class="btn btn-docx" id="btn-docx" onclick="testDocx()">⬇ Scarica DOCX</button>
+  <div class="status" id="status-docx"></div>
+  <details id="docx-log" style="display:none">
+    <summary>Log generazione</summary>
+    <pre id="docx-log-pre"></pre>
+  </details>
+</div>
+
+<div class="card">
+  <h2>Checklist collaudo (§8 criterio di chiusura M6)</h2>
+  <ul id="checklist" style="font-size:12px;line-height:2">
+    <li>☐ Template caricato (fetch OK)</li>
+    <li>☐ Logo nell'intestazione</li>
+    <li>☐ modulo_codice, modulo_versione, modulo_titolo nell'header</li>
+    <li>☐ h2 → grassetto 14pt nel DOCX</li>
+    <li>☐ h3 → grassetto 12pt nel DOCX</li>
+    <li>☐ p → paragrafo normale</li>
+    <li>☐ p[data-align=center] → paragrafo centrato</li>
+    <li>☐ strong → run grassetto</li>
+    <li>☐ em → run corsivo</li>
+    <li>☐ table con TH (grassetto) e TD</li>
+    <li>☐ img inline (firma) nel DOCX come drawing</li>
+    <li>☐ DOCX apribile senza errori in LibreOffice / Word</li>
+    <li>☐ Stack completamente gratuito/MIT — nessun modulo a pagamento</li>
+  </ul>
+</div>
+
+<!-- Script del banco di prova ─────────────────────────────────────────── -->
+<script>
+(async () => {
+  // Verifica dipendenze all'avvio
+  const setBadge = (id, ok, label) => {
+    const el = document.getElementById(id);
+    el.textContent = ok ? '✓ OK' : '✗ Mancante';
+    el.className = 'badge ' + (ok ? 'badge-ok' : 'badge-err');
+  };
+
+  setBadge('badge-pizzip',        typeof PizZip !== 'undefined');
+  // La libreria espone window.docxtemplater (minuscolo) nel bundle v3.44
+  setBadge('badge-docxtemplater', typeof docxtemplater !== 'undefined' || typeof Docxtemplater !== 'undefined');
+  setBadge('badge-m6',            typeof MOTORE_DOCX !== 'undefined');
+
+  // Controlla accessibilità del template
+  try {
+    const r = await fetch('./templates/template.docx', { method: 'HEAD' });
+    setBadge('badge-template', r.ok);
+  } catch {
+    setBadge('badge-template', false);
+  }
+})();
+
+// ── Test HTML ──────────────────────────────────────────────────────────────
+async function testHtml() {
+  const st  = document.getElementById('status-html');
+  const pre = document.getElementById('preview-area');
+  st.textContent = 'Generazione…';
+  st.className = 'status';
+  try {
+    const t0  = performance.now();
+    const out = await MOTORE_DOCX.generaDocumento({
+      tipo:       'verbale-riunione',
+      header:     TEST_HEADER,
+      corpo_html: CORPO_HTML,
+      formati:    { html: true },
+    });
+    const ms = Math.round(performance.now() - t0);
+
+    pre.style.display = 'block';
+    pre.innerHTML = `<iframe srcdoc="${out.htmlString.replace(/"/g, '&quot;')}"></iframe>`;
+    st.textContent = `✓ HTML generato in ${ms} ms`;
+    st.className = 'status ok';
+  } catch (err) {
+    st.textContent = '✗ ' + err.message;
+    st.className = 'status err';
+    console.error(err);
+  }
+}
+
+// ── Test DOCX ─────────────────────────────────────────────────────────────
+async function testDocx() {
+  const btn = document.getElementById('btn-docx');
+  const st  = document.getElementById('status-docx');
+  const log = document.getElementById('docx-log');
+  const pre = document.getElementById('docx-log-pre');
+
+  btn.disabled = true;
+  st.textContent = 'Carico template e genero DOCX…';
+  st.className = 'status';
+  log.style.display = 'none';
+
+  // Intercetta i console.warn di M6 per mostrarli nel log
+  const warns = [];
+  const _origWarn = console.warn;
+  console.warn = (...a) => { warns.push(a.join(' ')); _origWarn(...a); };
+
+  try {
+    const t0  = performance.now();
+    const out = await MOTORE_DOCX.generaDocumento({
+      tipo:       'verbale-riunione',
+      header:     TEST_HEADER,
+      corpo_html: CORPO_HTML,
+      formati:    { docx: true },
+    });
+    const ms = Math.round(performance.now() - t0);
+    console.warn = _origWarn;
+
+    // Scarica il file
+    const url  = URL.createObjectURL(out.docxBlob);
+    const link = document.createElement('a');
+    link.href     = url;
+    link.download = `test-m6-${new Date().toISOString().slice(0,10)}.docx`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+    st.textContent = `✓ DOCX generato in ${ms} ms — ${(out.docxBlob.size / 1024).toFixed(1)} KB`;
+    st.className = 'status ok';
+
+    if (warns.length) {
+      pre.textContent = warns.join('\n');
+      log.style.display = 'block';
+    }
+  } catch (err) {
+    console.warn = _origWarn;
+    st.textContent = '✗ ' + err.message;
+    st.className = 'status err';
+    pre.textContent = err.stack || err.message;
+    log.style.display = 'block';
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>

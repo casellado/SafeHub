@@ -103,6 +103,13 @@ const CANTIERI_SERVICE = (() => {
 
     await FILESYSTEM.scriviJson(anagDir, `anagrafica_${id}.json`, anagrafica);
 
+    // Ricarica l'anagrafica in memoria: garantisce che i moduli (es. Verbale Riunione)
+    // vedano committente e tutti gli altri campi lotto aggiornati immediatamente,
+    // senza attendere un cambio-cantiere che li ricaricherebbe da zero.
+    if (typeof ANAGRAFICA_SERVICE !== 'undefined') {
+      await ANAGRAFICA_SERVICE.carica(id);
+    }
+
     // Aggiorna cache IDB (solo i campi che cambiano con l'editing del lotto)
     const cached = await IDB.idbGet('cantieri_cache', id) ?? { cantiere_id: id };
     const nuovoStato = datiLotto.stato ?? cached.stato ?? 'attivo';

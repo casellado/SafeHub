@@ -65,5 +65,6 @@ echo " Indirizzo: http://localhost:$PORT"
 echo " Ctrl+C per fermare."
 echo ""
 
-# exec sostituisce il processo shell con Python: Ctrl+C chiude tutto cleanly
-exec "$PYTHON" -m http.server "$PORT"
+# Server con Cache-Control: no-store — ogni F5 rilegge i file dal disco.
+# Best practice sviluppo locale: senza questo Chrome riusa JS dalla cache HTTP.
+exec "$PYTHON" server.py "$PORT"

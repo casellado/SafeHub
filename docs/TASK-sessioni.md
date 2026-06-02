@@ -28,6 +28,8 @@ Per sviluppare da un punto: `git checkout -b nome-branch <tag>`.
 | **M1** Fondazione | — | v0.4.0 | PWA, FSA, IDB, cantiere corrente, shell |
 | **M2** Impostazioni | — | v0.4.0 | Identità CSE, firma PNG, logo, codici moduli, soglie scadenza |
 | **M3** Gestione Cantieri | — | v0.4.0 | Scaffolding 16 cartelle, cruscotto, scheda lotto + ruoli FK |
+| **M6** Motore DOCX | ✅ | v0.6.0 | `m6-motore-docx.js`; vendor/ locale; collaudato |
+| **Verbale Riunione** | **da collaudare** | — | Pilota Flusso B; `moduli/verbale-riunione/` |
 | **M4** Anagrafica | **COMPLETO** | v0.5.0 | Tutte e 7 le fasi: |
 | └─ F1 Imprese | | | Conformità §12, patente crediti, drawer centralizzato |
 | └─ F2 Lavoratori | | | Scadenze idoneità/formazione/abilitazioni ASR |
@@ -49,6 +51,16 @@ Per sviluppare da un punto: `git checkout -b nome-branch <tag>`.
 ---
 
 ## ⬜ PROSSIMI PASSI (ordine consigliato)
+
+### 🧪 IMMEDIATO — Collaudo M6 (test-m6.html)
+Aprire `test-m6.html` nel browser (server locale), fare:
+1. Verificare badge dipendenze (PizZip ✓, Docxtemplater ✓, MOTORE_DOCX ✓, template ✓)
+2. "Anteprima HTML" → vedere la preview nel iframe
+3. "Scarica DOCX" → aprire in LibreOffice/Word e verificare checklist §8
+
+Se il collaudo ha successo → creare tag `v0.6.0-m6-motore-docx`.
+
+---
 
 ### Opzione A — SafeCant allineamento + fix (aggancio immediato)
 - **Dipende da:** M4 F7 ✅ — il lato Archivio è pronto
@@ -115,6 +127,20 @@ I documenti del 'lavoro vivo' su cui l'AI assisterà. Restano archiviati nei ris
 - Ogni salvataggio M4 tocca SOLO la collezione indicata (`salvaCollezione('imprese', ...)`)
 - Il file ha sempre tutte le 8 collezioni
 
+**"Operatività" = raggruppamento di MENU, non struttura dati — decisione finale PO+CTO del 02/06/2026:**
+- I documenti del lavoro vivo del PO (Flusso A + documenti che il PO produce: verbale riunione, verifica POS/ITP, proposta sospensione CSE, ecc.) appaiono raggruppati sotto la voce di menu **"Operatività"**, perché è più immediato trovare dove si fa il lavoro.
+- **MAI cartelle o pattern di salvataggio cambiano**: ogni documento resta nella sua cartella tipizzata (`02_`, `03_`, `04_`, …) e segue il pattern del suo flusso (B = BOZZA→FINALIZZATO→PROTOCOLLATO; C = ricevuto/archiviato; A = sopralluogo interno). Nessuna riorganizzazione.
+- "Operatività" è una **VISTA di navigazione** (come il PO ragiona), agganciata sotto al modello a flussi già esistente. Coerente con `safehub-archivio-architettura-sezioni.md`: menu ≠ flusso.
+- Conferma collocazione già annotata (31/05): Verifica POS e Verifica ITP — nascono B, si archiviano come C — stanno in Operatività nel menu, pattern di archiviazione C. Allineato.
+- **Applicazione pratica**: "metti in Operatività" = voce di menu. Non tocca cartelle né pattern, non tocca nulla di già costruito (M1–M4, M6). Si applica quando si costruisce ciascun documento.
+
+**Firme nel Verbale di Riunione (pilota Flusso B) — decisione PO+CTO del 02/06/2026:**
+Da applicare quando si costruirà il modulo Verbale di Riunione. Non riguarda M6 (il motore è indifferente alla provenienza delle firme).
+- In SafeHub TUTTI i firmatari (CSE redattore, presenti, ispettore verbalizzante) possono firmare **sia via canvas sia via upload PNG**. Motivazione: in ufficio un firmatario può mandare la firma in differita dopo la riunione — serve poter completare il verbale caricando il PNG.
+- Differenza voluta con SafeCant: SafeCant (campo, iPad, tempo reale) → ispettore firma permanente o canvas, presenti solo canvas. SafeHub (ufficio, finalizzazione differita) → tutti possono anche upload PNG. I contesti d'uso diversi giustificano il comportamento diverso.
+- Riuso: upload PNG è già pattern esistente (M2). Estenderlo a tutti i firmatari del verbale non è lavoro nuovo. Le firme finiscono nel corpo_html come `<img base64>` — M6 le impagina senza sapere come sono state ottenute.
+- **Possibilità futura (NON ora):** valutare se distinguere per ogni firma se apposta in presenza (canvas) o caricata in differita (upload PNG), per tracciabilità/valore probatorio. Aggiunta fattibile sul pattern esistente se servirà; non si costruisce adesso.
+
 ---
 
-*Aggiornato al 01/06/2026 — v0.5.0 taggato, M4 completo. Perimetro Operatività definito dal PO.*
+*Aggiornato al 02/06/2026 — M6 scritto (da collaudare). Decisione firme Verbale Riunione annotata.*

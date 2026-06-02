@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION ogni volta che cambiano asset locali cachati (CLAUDE.md §Git).
  */
 
-const CACHE_VERSION = 'safehub-archivio-v18';  // bump M4-F7: export SafeCant
+const CACHE_VERSION = 'safehub-archivio-v22';  // bump: fix reload anagrafica dopo salva lotto
 
 const ASSET_LOCALI = [
   './',
@@ -24,6 +24,9 @@ const ASSET_LOCALI = [
   './shared/cantiere-corrente.js',
   './shared/impostazioni-service.js',
   './shared/alpine-init.js',
+  './vendor/pizzip.min.js',
+  './vendor/docxtemplater.js',
+  './shared/m6-motore-docx.js',
   './moduli/placeholder/placeholder.js',
   './moduli/impostazioni/impostazioni.js',
   './moduli/cantieri/cantieri.js',
@@ -36,6 +39,8 @@ const ASSET_LOCALI = [
   './moduli/anagrafica/persone.js',
   './moduli/anagrafica/cruscotto-scadenze.js',
   './moduli/anagrafica/export-safecant.js',
+  './moduli/verbale-riunione/verbale-riunione.js',
+  './templates/template.docx',
   './assets/icon-192.png',
   './assets/icon-512.png',
 ];

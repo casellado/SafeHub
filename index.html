@@ -32,6 +32,12 @@
   <script src="shared/impostazioni-service.js"></script>
   <script src="shared/cantieri-service.js"></script>
   <script src="shared/anagrafica-service.js"></script>
+
+  <!-- M6: dipendenze DOCX caricate da vendor/ per funzionare offline (no CDN) -->
+  <script src="vendor/pizzip.min.js"></script>
+  <script src="vendor/docxtemplater.js"></script>
+  <script src="shared/m6-motore-docx.js"></script>
+
   <script src="shared/alpine-init.js"></script>
 
   <!-- Alpine.js — defer: esegue dopo il parsing HTML, scatena alpine:init -->
@@ -48,6 +54,7 @@
   <script src="moduli/anagrafica/persone.js"></script>
   <script src="moduli/anagrafica/cruscotto-scadenze.js"></script>
   <script src="moduli/anagrafica/export-safecant.js"></script>
+  <script src="moduli/verbale-riunione/verbale-riunione.js"></script>
 </head>
 
 <body x-data x-cloak>
@@ -313,11 +320,16 @@
           <span aria-hidden="true">📊</span> Conformità Documenti
         </button>
 
-        <!-- OPERATIVITÀ (in sospeso — decisione PO 31/05) -->
+        <!-- OPERATIVITÀ — voce di menu (collocazione), cartelle/pattern invariati (decisione 02/06) -->
         <div class="nav-sezione" role="presentation">Operatività</div>
+        <button class="nav-voce" @click="navigaA('verbale-riunione')"
+                :class="{'attiva': $store.app.moduloAttivo === 'verbale-riunione'}"
+                :aria-current="$store.app.moduloAttivo === 'verbale-riunione' ? 'page' : null">
+          <span aria-hidden="true">📋</span> Verbale Riunione
+        </button>
         <button class="nav-voce sospesa"
                 disabled aria-disabled="true"
-                title="In attesa — da costruire dopo Anagrafica e Flussi B/C">
+                title="In attesa — Flusso A (da costruire dopo Flusso B)">
           <span aria-hidden="true">⏸</span> Verbali Sopralluogo
         </button>
 
