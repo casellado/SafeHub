@@ -6,10 +6,8 @@
  *   ciclo BOZZA→FINALIZZATO_DA_PROTOCOLLARE→PROTOCOLLATO, vista Protocollati con toggle e
  *   link FSA, editor ricco, firma CSE da M2, auto-save, promemoria normativo.
  *
- * NOTA DUPLICAZIONE: utility comuni (_scalafirma, FirmaCanvas, _serEditor, ecc.) sono
- * ridefinite qui (duplicazione temporanea accettata per non toccare il verbale collaudato).
- * Refactor in shared/flusso-b-helpers.js sarà fatto come intervento unico dopo 2-3 moduli B.
- *
+  * ridefinite qui (duplicazione temporanea accettata per non toccare il verbale collaudato).
+  *
  * Storage: 04_Proposte-Sospensione-CSE/Bozze/<uuid>.json + Protocollati/<numero>.json
  * M6 e template NON si toccano.
  */
@@ -44,128 +42,6 @@ const NOTE_NORMATIVE_PS = {
   ],
 };
 
-// ── Utility duplicate dal verbale (duplicazione temporanea — vedi nota sopra) ──
-
-function _scalafirmaPS(src, cW = 210, cH = 80) {
-  if (!src) return Promise.resolve(null);
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => {
-      const maxW = Math.round(cW * 0.80);
-      const maxH = Math.round(cH * 0.80);
-      const r    = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight, 1);
-      const w    = Math.max(1, Math.round(img.naturalWidth  * r));
-      const h    = Math.max(1, Math.round(img.naturalHeight * r));
-      const cv   = document.createElement('canvas');
-      cv.width = cW; cv.height = cH;
-      cv.getContext('2d').drawImage(img, Math.round((cW - w) / 2), Math.round((cH - h) / 2), w, h);
-      resolve(cv.toDataURL('image/png'));
-    };
-    img.onerror = () => resolve(null);
-    img.src = src;
-  });
-}
-
-function _ptCanvasPS(canvas, e) {
-  const r = canvas.getBoundingClientRect();
-  const src = e.touches?.[0] ?? e;
-  return [src.clientX - r.left, src.clientY - r.top];
-}
-
-function _ritagliaCanvasPS(canvas) {
-  const ctx = canvas.getContext('2d');
-  const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-  let minX = canvas.width, maxX = 0, minY = canvas.height, maxY = 0;
-  for (let y = 0; y < canvas.height; y++) {
-    for (let x = 0; x < canvas.width; x++) {
-      if (data[(y * canvas.width + x) * 4 + 3] > 8) {
-        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-        minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-      }
-    }
-  }
-  if (maxX < minX) return canvas.toDataURL('image/png');
-  const pad = 4;
-  const w = maxX - minX + 2 * pad, h = maxY - minY + 2 * pad;
-  const tmp = document.createElement('canvas');
-  tmp.width = w; tmp.height = h;
-  tmp.getContext('2d').drawImage(canvas, minX - pad, minY - pad, w, h, 0, 0, w, h);
-  return tmp.toDataURL('image/png');
-}
-
-function FirmaCanvasPS() {
-  return {
-    _ctx: null, _disegnando: false, _haTracce: false,
-    init() {
-      const cv = this.$refs.canvas;
-      cv.width = cv.offsetWidth || 380; cv.height = 100;
-      this._ctx = cv.getContext('2d');
-      this._ctx.strokeStyle = '#000'; this._ctx.lineWidth = 2;
-      this._ctx.lineCap = 'round'; this._ctx.lineJoin = 'round';
-    },
-    startDraw(e) { e.preventDefault(); this._disegnando = true; const [x,y] = _ptCanvasPS(this.$refs.canvas,e); this._ctx.beginPath(); this._ctx.moveTo(x,y); },
-    draw(e)      { if (!this._disegnando) return; e.preventDefault(); const [x,y] = _ptCanvasPS(this.$refs.canvas,e); this._ctx.lineTo(x,y); this._ctx.stroke(); this._haTracce = true; },
-    endDraw()    { this._disegnando = false; },
-    pulisci()    { this._ctx.clearRect(0,0,this.$refs.canvas.width,this.$refs.canvas.height); this._haTracce = false; },
-    usa()        {
-      if (!this._haTracce) { NOTIFICHE.attenzione('Firma vuota','Traccia la firma prima.'); return; }
-      this.$dispatch('firma-acquisita', { png: _ritagliaCanvasPS(this.$refs.canvas) });
-    },
-    annulla()    { this.$dispatch('firma-annullata'); },
-  };
-}
-
-function _serEditorPS(el) {
-  if (!el) return '';
-  const walk = (n) => {
-    let out = '';
-    for (const c of n.childNodes) {
-      if (c.nodeType === 3) { out += UTILS.escapeHtml(c.textContent); continue; }
-      if (c.nodeType !== 1) continue;
-      const t = c.tagName, inner = walk(c);
-      if (t === 'BR') { out += '<br>'; continue; }
-      if (t === 'B' || t === 'STRONG') { out += `<strong>${inner}</strong>`; continue; }
-      if (t === 'I' || t === 'EM')     { out += `<em>${inner}</em>`;         continue; }
-      if (t === 'SPAN') {
-        let s = inner;
-        if ((c.style?.fontWeight ?? '') >= '600' || c.style?.fontWeight === 'bold') s = `<strong>${s}</strong>`;
-        if (c.style?.fontStyle === 'italic') s = `<em>${s}</em>`;
-        out += s; continue;
-      }
-      if (t === 'DIV' || t === 'P') {
-        const da = c.getAttribute('data-align') || '', sa = c.style?.textAlign || '';
-        const a  = da || (sa === 'center' ? 'center' : sa === 'right' ? 'right' : '');
-        out += a ? `<p data-align="${a}">${inner || '<br>'}</p>` : `<p>${inner || '<br>'}</p>`;
-        continue;
-      }
-      out += inner;
-    }
-    return out;
-  };
-  return walk(el);
-}
-
-function _editorFromHtmlPS(html) {
-  if (!html) return '';
-  return html.replace(/<p([^>]*?)data-align="([^"]+)"([^>]*)>/g,
-    (_, pre, a, post) => `<p${pre}data-align="${a}"${post} style="text-align:${a}">`);
-}
-
-function _leggiBase64PS(file) {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload  = e => res(e.target.result);
-    r.onerror = ()  => rej(new Error('Lettura file non riuscita'));
-    r.readAsDataURL(file);
-  });
-}
-
-async function _scriviFilePS(dirHandle, nome, file) {
-  const fh = await dirHandle.getFileHandle(nome, { create: true });
-  const w  = await fh.createWritable();
-  await w.write(await file.arrayBuffer());
-  await w.close();
-}
 
 // Helper: restituisce l'intestazione modulo con override dei placeholder errati di M2.
 // Il ?? non basta perché i vecchi placeholder sono stringhe truthy (non null).
@@ -450,7 +326,7 @@ function PropostaSospensione() {
 
     _caricaEditors() {
       const el = document.getElementById('ed-relativ');
-      if (el) el.innerHTML = _editorFromHtmlPS(this.corrente?.relativamente_a ?? '');
+      if (el) el.innerHTML = _editorFromHtml(this.corrente?.relativamente_a ?? '');
     },
 
     edBoldPS(id)      { this._edCmdPS(id, 'bold'); },
@@ -462,13 +338,13 @@ function PropostaSospensione() {
       if (!el) return;
       el.focus(); document.execCommand(cmd, false);
       const el2 = document.getElementById(id);
-      if (el2) this.corrente.relativamente_a = _serEditorPS(el2);
+      if (el2) this.corrente.relativamente_a = _serEditor(el2);
       this._scheduleAutosave();
     },
 
     onEditorInputPS(id) {
       const el = document.getElementById(id);
-      if (el) this.corrente.relativamente_a = _serEditorPS(el);
+      if (el) this.corrente.relativamente_a = _serEditor(el);
       this._scheduleAutosave();
     },
 
@@ -476,7 +352,7 @@ function PropostaSospensione() {
       e.preventDefault();
       document.execCommand('insertText', false, e.clipboardData.getData('text/plain'));
       const el = document.getElementById(id);
-      if (el) this.corrente.relativamente_a = _serEditorPS(el);
+      if (el) this.corrente.relativamente_a = _serEditor(el);
       this._scheduleAutosave();
     },
 
@@ -496,7 +372,7 @@ function PropostaSospensione() {
     async onUploadFirma(e) {
       const file = e.target.files?.[0];
       if (!file || !this.corrente) return;
-      const png = await _leggiBase64PS(file);
+      const png = await _leggiBase64(file);
       this.corrente.firma_cse.firma_png_base64 = png;
       this.corrente.firma_cse.tipo_firma      = 'upload';
       this.corrente.firma_cse.timestamp_firma = new Date().toISOString();
@@ -596,8 +472,8 @@ function PropostaSospensione() {
         const prtDir  = await FILESYSTEM.navigaPercorso(cantDir, ['04_Proposte-Sospensione-CSE', 'Protocollati'], true);
         const numEsc  = this.proto.numero.replace(/[\/\\:*?"<>|]/g, '-');
 
-        if (this.proto._pdfFile)     await _scriviFilePS(prtDir, `${numEsc}.pdf`,         this.proto._pdfFile);
-        if (this.proto._letteraFile) await _scriviFilePS(prtDir, `${numEsc}.lettera.pdf`, this.proto._letteraFile);
+        if (this.proto._pdfFile)     await _scriviFile(prtDir, `${numEsc}.pdf`,         this.proto._pdfFile);
+        if (this.proto._letteraFile) await _scriviFile(prtDir, `${numEsc}.lettera.pdf`, this.proto._letteraFile);
 
         this.corrente.stato              = 'PROTOCOLLATO';
         this.corrente.numero_progressivo = this.proto.numero;
@@ -664,17 +540,12 @@ function PropostaSospensione() {
 // NON ripete il titolo nel corpo (è nell'header del template Word).
 
 // Stessa funzione del verbale: aggiunge data-line="15" ai <p> dell'editor privi dell'attributo.
-function _applicaInterlinea15PS(html) {
-  if (!html) return html;
-  return html.replace(/<p(?![^>]*data-line)([^>]*)>/g, '<p data-line="15"$1>');
-}
-
 async function generaCorpoHtmlPropostaSospensione(d) {
   const esc = (s) => UTILS.escapeHtml(s ?? '');
   const p   = [];
 
   // FIX-1: scala firma CSE (canvas fisso, dimensione uniforme)
-  const cseImg = await _scalafirmaPS(d.firma_cse?.firma_png_base64 ?? null);
+  const cseImg = await _scalafirma(d.firma_cse?.firma_png_base64 ?? null);
 
   const chk = (flag) => flag ? '☑' : '☐';
 
@@ -747,7 +618,7 @@ async function generaCorpoHtmlPropostaSospensione(d) {
 
   // 8. Relativamente a + editor ricco
   p.push(`<p>relativamente a:</p>`);
-  if (d.relativamente_a?.trim()) p.push(_applicaInterlinea15PS(d.relativamente_a));
+  if (d.relativamente_a?.trim()) p.push(_applicaInterlinea15(d.relativamente_a));
 
   // 9. Firma CSE — blocco semplice allineato a DESTRA (no tabella: firma unica)
   // Schema: "Il Coordinatore per l'Esecuzione" / nome / firma
@@ -1229,7 +1100,7 @@ const _TEMPLATE_PS = /* html */`
        @keydown.escape.window="firmaModal = null">
     <template x-if="firmaModal !== null">
       <div class="bg-white rounded-xl shadow-2xl p-5 w-full max-w-md"
-           x-data="FirmaCanvasPS()"
+           x-data="FirmaCanvas()"
            x-init="init()"
            @firma-acquisita="$root.onFirmaAcquisita($event.detail.png)"
            @firma-annullata="$root.firmaModal = null"

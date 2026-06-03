@@ -50,40 +50,6 @@ const NOTE_NORMATIVE_IT = {
 
 // ── Utility (suffisso IT — anti-regressione) ──────────────────────────────────
 
-function _scalafirmaIT(src, cW = 210, cH = 80) {
-  if (!src) return Promise.resolve(null);
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => {
-      const r = Math.min((cW * 0.80) / img.naturalWidth, (cH * 0.80) / img.naturalHeight, 1);
-      const w = Math.max(1, Math.round(img.naturalWidth * r));
-      const h = Math.max(1, Math.round(img.naturalHeight * r));
-      const cv = document.createElement('canvas');
-      cv.width = cW; cv.height = cH;
-      cv.getContext('2d').drawImage(img, Math.round((cW - w) / 2), Math.round((cH - h) / 2), w, h);
-      resolve(cv.toDataURL('image/png'));
-    };
-    img.onerror = () => resolve(null);
-    img.src = src;
-  });
-}
-
-function _leggiBase64IT(file) {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload  = e => res(e.target.result);
-    r.onerror = ()  => rej(new Error('Lettura file non riuscita'));
-    r.readAsDataURL(file);
-  });
-}
-
-async function _scriviFileIT(dirHandle, nome, file) {
-  const fh = await dirHandle.getFileHandle(nome, { create: true });
-  const w  = await fh.createWritable();
-  await w.write(await file.arrayBuffer());
-  await w.close();
-}
-
 function _intestazioneIT() {
   const m   = IMPOSTAZIONI_SERVICE.modulo('verifica-itp');
   // Override dei valori errati presenti in M2 (Mod.IT.01 / Rev.1-2026 / titolo corto):
@@ -388,7 +354,7 @@ function VerificaItp() {
     async onUploadFirmaRL(e) {
       const file = e.target.files?.[0];
       if (!file || !this.corrente) return;
-      const png = await _leggiBase64IT(file);
+      const png = await _leggiBase64(file);
       this.corrente.firma_rl.firma_png_base64 = png;
       this.corrente.firma_rl.tipo_firma      = 'upload';
       this.corrente.firma_rl.timestamp_firma = new Date().toISOString();
@@ -406,7 +372,7 @@ function VerificaItp() {
     async onUploadVisto(e) {
       const file = e.target.files?.[0];
       if (!file || !this.corrente) return;
-      const png = await _leggiBase64IT(file);
+      const png = await _leggiBase64(file);
       this.corrente.visto_area.firma_png_base64 = png;
       this.corrente.visto_area.tipo_firma      = 'upload';
       this.corrente.visto_area.timestamp_firma = new Date().toISOString();
@@ -489,8 +455,8 @@ function VerificaItp() {
         const cantDir = await root.getDirectoryHandle(cantId);
         const prtDir  = await FILESYSTEM.navigaPercorso(cantDir, ['07_Verifiche-ITP', 'Protocollati'], true);
         const numEsc  = this.proto.numero.replace(/[\/\\:*?"<>|]/g, '-');
-        if (this.proto._pdfFile)     await _scriviFileIT(prtDir, `${numEsc}.pdf`,         this.proto._pdfFile);
-        if (this.proto._letteraFile) await _scriviFileIT(prtDir, `${numEsc}.lettera.pdf`, this.proto._letteraFile);
+        if (this.proto._pdfFile)     await _scriviFile(prtDir, `${numEsc}.pdf`,         this.proto._pdfFile);
+        if (this.proto._letteraFile) await _scriviFile(prtDir, `${numEsc}.lettera.pdf`, this.proto._letteraFile);
         this.corrente.stato              = 'PROTOCOLLATO';
         this.corrente.numero_progressivo = this.proto.numero;
         this.corrente.protocollo = {
@@ -557,8 +523,8 @@ async function generaCorpoHtmlVerificaItp(d) {
 
   // Pre-scala firme
   const [rlImg, areaImg] = await Promise.all([
-    _scalafirmaIT(d.firma_rl?.firma_png_base64   ?? null),
-    _scalafirmaIT(d.visto_area?.firma_png_base64 ?? null),
+    _scalafirma(d.firma_rl?.firma_png_base64   ?? null),
+    _scalafirma(d.visto_area?.firma_png_base64 ?? null),
   ]);
 
   // 1. Tabella amministrativa

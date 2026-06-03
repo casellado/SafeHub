@@ -67,130 +67,9 @@ const NOTE_NORMATIVE = {
 
 // ── Helper editor ricco ──────────────────────────────────────────────────────
 
-function _serEditor(el) {
-  if (!el) return '';
-  return _serNodo(el);
-}
-
-function _serNodo(el) {
-  let out = '';
-  for (const n of el.childNodes) {
-    if (n.nodeType === 3) { out += UTILS.escapeHtml(n.textContent); continue; }
-    if (n.nodeType !== 1) continue;
-    const tag   = n.tagName;
-    const inner = _serNodo(n);
-    if (tag === 'BR')                      { out += '<br>'; continue; }
-    if (tag === 'B' || tag === 'STRONG')   { out += `<strong>${inner}</strong>`; continue; }
-    if (tag === 'I' || tag === 'EM')       { out += `<em>${inner}</em>`; continue; }
-    if (tag === 'SPAN') {
-      let s = inner;
-      if ((n.style?.fontWeight ?? '') >= '600' || n.style?.fontWeight === 'bold') s = `<strong>${s}</strong>`;
-      if (n.style?.fontStyle === 'italic') s = `<em>${s}</em>`;
-      out += s; continue;
-    }
-    if (tag === 'DIV' || tag === 'P') {
-      const da = n.getAttribute('data-align') || '';
-      const sa = n.style?.textAlign || '';
-      const a  = da || (sa === 'center' ? 'center' : sa === 'right' ? 'right' : '');
-      out += a ? `<p data-align="${a}">${inner || '<br>'}</p>` : `<p>${inner || '<br>'}</p>`;
-      continue;
-    }
-    out += inner;
-  }
-  return out;
-}
-
-function _editorFromHtml(html) {
-  if (!html) return '';
-  return html.replace(
-    /<p([^>]*?)data-align="([^"]+)"([^>]*)>/g,
-    (_, pre, a, post) => `<p${pre}data-align="${a}"${post} style="text-align:${a}">`
-  );
-}
-
 // ── Helper canvas firma ──────────────────────────────────────────────────────
 
-function _ptCanvas(canvas, e) {
-  const r   = canvas.getBoundingClientRect();
-  const src = e.touches?.[0] ?? e;
-  return [src.clientX - r.left, src.clientY - r.top];
-}
-
-function _ritagliaCanvas(canvas) {
-  const ctx  = canvas.getContext('2d');
-  const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-  let minX = canvas.width, maxX = 0, minY = canvas.height, maxY = 0;
-  for (let y = 0; y < canvas.height; y++) {
-    for (let x = 0; x < canvas.width; x++) {
-      if (data[(y * canvas.width + x) * 4 + 3] > 8) {
-        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-        minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-      }
-    }
-  }
-  if (maxX < minX) return canvas.toDataURL('image/png');
-  const pad = 4;
-  const w = maxX - minX + 2 * pad, h = maxY - minY + 2 * pad;
-  const tmp = document.createElement('canvas');
-  tmp.width = w; tmp.height = h;
-  tmp.getContext('2d').drawImage(canvas, minX - pad, minY - pad, w, h, 0, 0, w, h);
-  return tmp.toDataURL('image/png');
-}
-
 // ── FirmaCanvas Alpine component ─────────────────────────────────────────────
-
-function FirmaCanvas() {
-  return {
-    _ctx:        null,
-    _disegnando: false,
-    _haTracce:   false,
-
-    init() {
-      const canvas = this.$refs.canvas;
-      canvas.width  = canvas.offsetWidth || 380;
-      canvas.height = 100;
-      this._ctx = canvas.getContext('2d');
-      this._ctx.strokeStyle = '#000';
-      this._ctx.lineWidth   = 2;
-      this._ctx.lineCap     = 'round';
-      this._ctx.lineJoin    = 'round';
-    },
-
-    startDraw(e) {
-      e.preventDefault();
-      this._disegnando = true;
-      const [x, y] = _ptCanvas(this.$refs.canvas, e);
-      this._ctx.beginPath();
-      this._ctx.moveTo(x, y);
-    },
-
-    draw(e) {
-      if (!this._disegnando) return;
-      e.preventDefault();
-      const [x, y] = _ptCanvas(this.$refs.canvas, e);
-      this._ctx.lineTo(x, y);
-      this._ctx.stroke();
-      this._haTracce = true;
-    },
-
-    endDraw() { this._disegnando = false; },
-
-    pulisci() {
-      this._ctx.clearRect(0, 0, this.$refs.canvas.width, this.$refs.canvas.height);
-      this._haTracce = false;
-    },
-
-    usa() {
-      if (!this._haTracce) {
-        NOTIFICHE.attenzione('Firma vuota', 'Traccia la firma prima di confermare.');
-        return;
-      }
-      this.$dispatch('firma-acquisita', { png: _ritagliaCanvas(this.$refs.canvas) });
-    },
-
-    annulla() { this.$dispatch('firma-annullata'); },
-  };
-}
 
 // ── VerbaleRiunione Alpine component ─────────────────────────────────────────
 
@@ -763,7 +642,10 @@ function VerbaleRiunione() {
         this.drawerProtocolloAperto = false;
         this.proto = { numero: '', data: '', _pdfFile: null, _letteraFile: null, salvando: false };
         NOTIFICHE.successo('Protocollato', `Verbale n. ${this.corrente.numero_progressivo} archiviato.`);
+        // Allineato agli altri 4 moduli: auto-switch a vista Protocollati (Decisione 1 PO 03/06/2026)
         await this._caricaLista();
+        this.vistaLista = 'protocollati';
+        await this._caricaProtocollati();
         this.corrente = null;
       } catch (err) {
         ERRORI.gestisciErrore('verbale-riunione/salva-protocollo', err);
@@ -812,30 +694,9 @@ function VerbaleRiunione() {
 
 // ── Utility modulo ────────────────────────────────────────────────────────────
 
-function _leggiBase64(file) {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload  = e => res(e.target.result);
-    r.onerror = ()  => rej(new Error('Lettura file non riuscita'));
-    r.readAsDataURL(file);
-  });
-}
-
-async function _scriviFile(dirHandle, nome, file) {
-  const fh = await dirHandle.getFileHandle(nome, { create: true });
-  const w  = await fh.createWritable();
-  await w.write(await file.arrayBuffer());
-  await w.close();
-}
-
 // Aggiunge data-line="15" ai <p> privi di data-line nell'HTML dell'editor ricco.
 // I testi digitati dal PO nei campi narrativi non hanno l'attributo: questo li porta
 // a interlinea 1,5 coerente con il resto del documento (M6 legge data-line).
-function _applicaInterlinea15(html) {
-  if (!html) return html;
-  return html.replace(/<p(?![^>]*data-line)([^>]*)>/g, '<p data-line="15"$1>');
-}
-
 // ── generaCorpoHtmlVerbaleRiunione ────────────────────────────────────────────
 // Funzione pura ASYNC: dati → stringa HTML con solo tag supportati da M6.
 // NON include il promemoria normativo (quello è UI-only).
@@ -843,29 +704,6 @@ function _applicaInterlinea15(html) {
 
 // Riquadro firma uniforme: canvas fisso 210x80 px con firma scalata proporzionalmente
 // e centrata dentro. Tutte le firme occupano lo stesso spazio nel DOCX senza distorsioni.
-function _scalafirma(src, cW = 210, cH = 80) {
-  if (!src) return Promise.resolve(null);
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => {
-      // Scala proporzionalmente per stare nell'80% del canvas (margine 10% per lato)
-      const maxW = Math.round(cW * 0.80);
-      const maxH = Math.round(cH * 0.80);
-      const r    = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight, 1);
-      const w    = Math.max(1, Math.round(img.naturalWidth  * r));
-      const h    = Math.max(1, Math.round(img.naturalHeight * r));
-      const cv   = document.createElement('canvas');
-      cv.width   = cW; cv.height = cH;
-      const ctx  = cv.getContext('2d');
-      // Sfondo trasparente (default canvas); centra la firma
-      ctx.drawImage(img, Math.round((cW - w) / 2), Math.round((cH - h) / 2), w, h);
-      resolve(cv.toDataURL('image/png'));
-    };
-    img.onerror = () => resolve(null);  // se l'immagine è corrotta, cella vuota
-    img.src = src;
-  });
-}
-
 async function generaCorpoHtmlVerbaleRiunione(d) {
   const esc = (s) => UTILS.escapeHtml(s ?? '');
   const p   = [];

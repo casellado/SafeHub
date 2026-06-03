@@ -43,122 +43,6 @@ const NOTE_NORMATIVE_VP = {
 
 // ── Utility (suffisso VP — anti-regressione da copia-incolla) ─────────────────
 
-function _scalafirmaVP(src, cW = 210, cH = 80) {
-  if (!src) return Promise.resolve(null);
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => {
-      const r = Math.min((cW * 0.80) / img.naturalWidth, (cH * 0.80) / img.naturalHeight, 1);
-      const w = Math.max(1, Math.round(img.naturalWidth * r));
-      const h = Math.max(1, Math.round(img.naturalHeight * r));
-      const cv = document.createElement('canvas');
-      cv.width = cW; cv.height = cH;
-      cv.getContext('2d').drawImage(img, Math.round((cW - w) / 2), Math.round((cH - h) / 2), w, h);
-      resolve(cv.toDataURL('image/png'));
-    };
-    img.onerror = () => resolve(null);
-    img.src = src;
-  });
-}
-
-function _ptCanvasVP(canvas, e) {
-  const r = canvas.getBoundingClientRect(), src = e.touches?.[0] ?? e;
-  return [src.clientX - r.left, src.clientY - r.top];
-}
-
-function _ritagliaCanvasVP(canvas) {
-  const ctx = canvas.getContext('2d'), data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-  let minX = canvas.width, maxX = 0, minY = canvas.height, maxY = 0;
-  for (let y = 0; y < canvas.height; y++)
-    for (let x = 0; x < canvas.width; x++)
-      if (data[(y * canvas.width + x) * 4 + 3] > 8) {
-        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-        minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-      }
-  if (maxX < minX) return canvas.toDataURL('image/png');
-  const pad = 4, w = maxX - minX + 2 * pad, h = maxY - minY + 2 * pad;
-  const tmp = document.createElement('canvas');
-  tmp.width = w; tmp.height = h;
-  tmp.getContext('2d').drawImage(canvas, minX - pad, minY - pad, w, h, 0, 0, w, h);
-  return tmp.toDataURL('image/png');
-}
-
-function FirmaCanvasVP() {
-  return {
-    _ctx: null, _disegnando: false, _haTracce: false,
-    init() {
-      const cv = this.$refs.canvas;
-      cv.width = cv.offsetWidth || 380; cv.height = 100;
-      this._ctx = cv.getContext('2d');
-      this._ctx.strokeStyle = '#000'; this._ctx.lineWidth = 2;
-      this._ctx.lineCap = 'round'; this._ctx.lineJoin = 'round';
-    },
-    startDraw(e) { e.preventDefault(); this._disegnando = true; const [x,y] = _ptCanvasVP(this.$refs.canvas,e); this._ctx.beginPath(); this._ctx.moveTo(x,y); },
-    draw(e)      { if (!this._disegnando) return; e.preventDefault(); const [x,y] = _ptCanvasVP(this.$refs.canvas,e); this._ctx.lineTo(x,y); this._ctx.stroke(); this._haTracce = true; },
-    endDraw()    { this._disegnando = false; },
-    pulisci()    { this._ctx.clearRect(0,0,this.$refs.canvas.width,this.$refs.canvas.height); this._haTracce = false; },
-    usa()        { if (!this._haTracce) { NOTIFICHE.attenzione('Firma vuota','Traccia la firma prima.'); return; } this.$dispatch('firma-acquisita', { png: _ritagliaCanvasVP(this.$refs.canvas) }); },
-    annulla()    { this.$dispatch('firma-annullata'); },
-  };
-}
-
-function _serEditorVP(el) {
-  if (!el) return '';
-  const walk = (n) => {
-    let out = '';
-    for (const c of n.childNodes) {
-      if (c.nodeType === 3) { out += UTILS.escapeHtml(c.textContent); continue; }
-      if (c.nodeType !== 1) continue;
-      const t = c.tagName, inner = walk(c);
-      if (t === 'BR') { out += '<br>'; continue; }
-      if (t === 'B' || t === 'STRONG') { out += `<strong>${inner}</strong>`; continue; }
-      if (t === 'I' || t === 'EM')     { out += `<em>${inner}</em>`;         continue; }
-      if (t === 'SPAN') {
-        let s = inner;
-        if ((c.style?.fontWeight ?? '') >= '600' || c.style?.fontWeight === 'bold') s = `<strong>${s}</strong>`;
-        if (c.style?.fontStyle === 'italic') s = `<em>${s}</em>`;
-        out += s; continue;
-      }
-      if (t === 'DIV' || t === 'P') {
-        const da = c.getAttribute('data-align') || '', sa = c.style?.textAlign || '';
-        const a  = da || (sa === 'center' ? 'center' : sa === 'right' ? 'right' : '');
-        out += a ? `<p data-align="${a}">${inner || '<br>'}</p>` : `<p>${inner || '<br>'}</p>`;
-        continue;
-      }
-      out += inner;
-    }
-    return out;
-  };
-  return walk(el);
-}
-
-function _editorFromHtmlVP(html) {
-  if (!html) return '';
-  return html.replace(/<p([^>]*?)data-align="([^"]+)"([^>]*)>/g,
-    (_, pre, a, post) => `<p${pre}data-align="${a}"${post} style="text-align:${a}">`);
-}
-
-function _leggiBase64VP(file) {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload  = e => res(e.target.result);
-    r.onerror = ()  => rej(new Error('Lettura file non riuscita'));
-    r.readAsDataURL(file);
-  });
-}
-
-async function _scriviFileVP(dirHandle, nome, file) {
-  const fh = await dirHandle.getFileHandle(nome, { create: true });
-  const w  = await fh.createWritable();
-  await w.write(await file.arrayBuffer());
-  await w.close();
-}
-
-function _applicaInterlinea15VP(html) {
-  if (!html) return html;
-  return html.replace(/<p(?![^>]*data-line)([^>]*)>/g, '<p data-line="15"$1>');
-}
-
 function _intestazioneVP() {
   const m   = IMPOSTAZIONI_SERVICE.modulo('verifica-pos');
   const bad = new Set(['verifica-pos', '']);
@@ -431,7 +315,7 @@ function VerificaPos() {
 
     _caricaEditors() {
       const el = document.getElementById('ed-note-vp');
-      if (el) el.innerHTML = _editorFromHtmlVP(this.corrente?.note ?? '');
+      if (el) el.innerHTML = _editorFromHtml(this.corrente?.note ?? '');
     },
 
     edBoldNote()       { this._edCmdVP('ed-note-vp', 'bold'); },
@@ -442,13 +326,13 @@ function VerificaPos() {
       const el = document.getElementById(id);
       if (!el) return;
       el.focus(); document.execCommand(cmd, false);
-      if (el) this.corrente.note = _serEditorVP(el);
+      if (el) this.corrente.note = _serEditor(el);
       this._scheduleAutosave();
     },
 
     onEditorNoteInput() {
       const el = document.getElementById('ed-note-vp');
-      if (el) this.corrente.note = _serEditorVP(el);
+      if (el) this.corrente.note = _serEditor(el);
       this._scheduleAutosave();
     },
 
@@ -456,7 +340,7 @@ function VerificaPos() {
       e.preventDefault();
       document.execCommand('insertText', false, e.clipboardData.getData('text/plain'));
       const el = document.getElementById('ed-note-vp');
-      if (el) this.corrente.note = _serEditorVP(el);
+      if (el) this.corrente.note = _serEditor(el);
       this._scheduleAutosave();
     },
 
@@ -476,7 +360,7 @@ function VerificaPos() {
     async onUploadFirmaCse(e) {
       const file = e.target.files?.[0];
       if (!file || !this.corrente) return;
-      const png = await _leggiBase64VP(file);
+      const png = await _leggiBase64(file);
       this.corrente.firma_cse.firma_png_base64 = png;
       this.corrente.firma_cse.tipo_firma      = 'upload';
       this.corrente.firma_cse.timestamp_firma = new Date().toISOString();
@@ -494,7 +378,7 @@ function VerificaPos() {
     async onUploadVisto(campo, e) {
       const file = e.target.files?.[0];
       if (!file || !this.corrente) return;
-      const png = await _leggiBase64VP(file);
+      const png = await _leggiBase64(file);
       this.corrente[campo].firma_png_base64 = png;
       this.corrente[campo].tipo_firma      = 'upload';
       this.corrente[campo].timestamp_firma = new Date().toISOString();
@@ -581,8 +465,8 @@ function VerificaPos() {
         const cantDir = await root.getDirectoryHandle(cantId);
         const prtDir  = await FILESYSTEM.navigaPercorso(cantDir, ['03_Verifiche-POS', 'Protocollati'], true);
         const numEsc  = this.proto.numero.replace(/[\/\\:*?"<>|]/g, '-');
-        if (this.proto._pdfFile)     await _scriviFileVP(prtDir, `${numEsc}.pdf`,         this.proto._pdfFile);
-        if (this.proto._letteraFile) await _scriviFileVP(prtDir, `${numEsc}.lettera.pdf`, this.proto._letteraFile);
+        if (this.proto._pdfFile)     await _scriviFile(prtDir, `${numEsc}.pdf`,         this.proto._pdfFile);
+        if (this.proto._letteraFile) await _scriviFile(prtDir, `${numEsc}.lettera.pdf`, this.proto._letteraFile);
         this.corrente.stato              = 'PROTOCOLLATO';
         this.corrente.numero_progressivo = this.proto.numero;
         this.corrente.protocollo = {
@@ -651,9 +535,9 @@ async function generaCorpoHtmlVerificaPos(d) {
 
   // Pre-scala le 3 firme
   const [cseImg, rlImg, areaImg] = await Promise.all([
-    _scalafirmaVP(d.firma_cse?.firma_png_base64  ?? null),
-    _scalafirmaVP(d.visto_rl?.firma_png_base64   ?? null),
-    _scalafirmaVP(d.visto_area?.firma_png_base64 ?? null),
+    _scalafirma(d.firma_cse?.firma_png_base64  ?? null),
+    _scalafirma(d.visto_rl?.firma_png_base64   ?? null),
+    _scalafirma(d.visto_area?.firma_png_base64 ?? null),
   ]);
 
   // 1. Tabella amministrativa
@@ -717,7 +601,7 @@ async function generaCorpoHtmlVerificaPos(d) {
 
   // 8. Note (sempre presente, interlinea 1,5 via helper)
   if (d.note?.trim()) {
-    p.push(_applicaInterlinea15VP(d.note));
+    p.push(_applicaInterlinea15(d.note));
   }
 
   // 9. Firme — 3 colonne: CSE | Visto RL | Visto Area
@@ -1167,7 +1051,7 @@ const _TEMPLATE_VP = /* html */`
        @keydown.escape.window="firmaModal = null">
     <template x-if="firmaModal !== null">
       <div class="bg-white rounded-xl shadow-2xl p-5 w-full max-w-md"
-           x-data="FirmaCanvasVP()" x-init="init()"
+           x-data="FirmaCanvas()" x-init="init()"
            @firma-acquisita="$root.onFirmaAcquisita($event.detail.png)"
            @firma-annullata="$root.firmaModal = null"
            role="dialog" aria-modal="true" aria-label="Canvas firma CSE">

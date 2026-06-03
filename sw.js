@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION ogni volta che cambiano asset locali cachati (CLAUDE.md §Git).
  */
 
-const CACHE_VERSION = 'safehub-archivio-v26';  // bump: M-ITP Verifica ITP
+const CACHE_VERSION = 'safehub-archivio-v27';  // bump: fattorizzazione flusso-b-helpers
 
 const ASSET_LOCALI = [
   './',
@@ -27,6 +27,7 @@ const ASSET_LOCALI = [
   './vendor/pizzip.min.js',
   './vendor/docxtemplater.js',
   './shared/m6-motore-docx.js',
+  './shared/flusso-b-helpers.js',
   './moduli/placeholder/placeholder.js',
   './moduli/impostazioni/impostazioni.js',
   './moduli/cantieri/cantieri.js',

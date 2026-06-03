@@ -48,47 +48,7 @@ const NOTE_NORMATIVE_RL = {
 
 // ── Utility (duplicate con suffisso RL — pattern anti-regressione Flusso B) ───
 
-function _scalafirmaRL(src, cW = 210, cH = 80) {
-  if (!src) return Promise.resolve(null);
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => {
-      const maxW = Math.round(cW * 0.80), maxH = Math.round(cH * 0.80);
-      const r = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight, 1);
-      const w = Math.max(1, Math.round(img.naturalWidth * r));
-      const h = Math.max(1, Math.round(img.naturalHeight * r));
-      const cv = document.createElement('canvas');
-      cv.width = cW; cv.height = cH;
-      cv.getContext('2d').drawImage(img, Math.round((cW - w) / 2), Math.round((cH - h) / 2), w, h);
-      resolve(cv.toDataURL('image/png'));
-    };
-    img.onerror = () => resolve(null);
-    img.src = src;
-  });
-}
-
-function _leggiBase64RL(file) {
-  return new Promise((res, rej) => {
-    const r = new FileReader();
-    r.onload  = e => res(e.target.result);
-    r.onerror = ()  => rej(new Error('Lettura file non riuscita'));
-    r.readAsDataURL(file);
-  });
-}
-
-async function _scriviFileRL(dirHandle, nome, file) {
-  const fh = await dirHandle.getFileHandle(nome, { create: true });
-  const w  = await fh.createWritable();
-  await w.write(await file.arrayBuffer());
-  await w.close();
-}
-
 // Aggiunge data-line="15" ai <p> dell'editor ricco privi dell'attributo
-function _applicaInterlinea15RL(html) {
-  if (!html) return html;
-  return html.replace(/<p(?![^>]*data-line)([^>]*)>/g, '<p data-line="15"$1>');
-}
-
 // Header modulo — override della chiave tecnica 'disposizione-rl' e di valori vuoti.
 // IMPOSTAZIONI_SERVICE.modulo() restituisce { titolo: tipo } quando la chiave non è in M2:
 // 'disposizione-rl' è truthy ma è il nome tecnico, non il titolo. Viene intercettato.
@@ -416,7 +376,7 @@ function DisposizioneRL() {
     async onUploadFirmaRL(e) {
       const file = e.target.files?.[0];
       if (!file || !this.corrente) return;
-      const png = await _leggiBase64RL(file);
+      const png = await _leggiBase64(file);
       this.corrente.firma_rl.firma_png_base64 = png;
       this.corrente.firma_rl.tipo_firma      = 'upload';
       this.corrente.firma_rl.timestamp_firma = new Date().toISOString();
@@ -435,7 +395,7 @@ function DisposizioneRL() {
     async onUploadVisto(e) {
       const file = e.target.files?.[0];
       if (!file || !this.corrente) return;
-      const png = await _leggiBase64RL(file);
+      const png = await _leggiBase64(file);
       this.corrente.visto_firma.firma_png_base64 = png;
       this.corrente.visto_firma.tipo_firma      = 'upload';
       this.corrente.visto_firma.timestamp_firma = new Date().toISOString();
@@ -521,8 +481,8 @@ function DisposizioneRL() {
         const cantDir = await root.getDirectoryHandle(cantId);
         const prtDir  = await FILESYSTEM.navigaPercorso(cantDir, ['05_Disposizioni-RL', 'Protocollati'], true);
         const numEsc  = this.proto.numero.replace(/[\/\\:*?"<>|]/g, '-');
-        if (this.proto._pdfFile)     await _scriviFileRL(prtDir, `${numEsc}.pdf`,         this.proto._pdfFile);
-        if (this.proto._letteraFile) await _scriviFileRL(prtDir, `${numEsc}.lettera.pdf`, this.proto._letteraFile);
+        if (this.proto._pdfFile)     await _scriviFile(prtDir, `${numEsc}.pdf`,         this.proto._pdfFile);
+        if (this.proto._letteraFile) await _scriviFile(prtDir, `${numEsc}.lettera.pdf`, this.proto._letteraFile);
         this.corrente.stato              = 'PROTOCOLLATO';
         this.corrente.numero_progressivo = this.proto.numero;
         this.corrente.protocollo = {
@@ -588,8 +548,8 @@ async function generaCorpoHtmlDisposizioneRL(d) {
 
   // Pre-scala firme (canvas fisso 210×80px = dimensioni uniformi)
   const [rlImg, vistoImg] = await Promise.all([
-    _scalafirmaRL(d.firma_rl?.firma_png_base64  ?? null),
-    _scalafirmaRL(d.visto_firma?.firma_png_base64 ?? null),
+    _scalafirma(d.firma_rl?.firma_png_base64  ?? null),
+    _scalafirma(d.visto_firma?.firma_png_base64 ?? null),
   ]);
 
   // 1. Tabella amministrativa (snapshot anagrafica)
