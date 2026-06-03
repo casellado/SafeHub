@@ -36,11 +36,13 @@ Per sviluppare da un punto: `git checkout -b nome-branch <tag>`.
 | **Verbale Riunione** | COMPLETO | v0.8.0 | Pilota Flusso B — firme 3 blocchi, protocollati, interlinea editor |
 | **M13 Proposta Sospensione** | COMPLETO | v0.8.0 | Lettera art.92 c.1 lett.e — destinatari, PROPONE+caselle, firma CSE |
 | **M15 Disposizione RL** | COMPLETO | v0.8.0 | Lettera RL Mod.RE.01-15 — tabella amm., VISTO/DISPONE, firme upload |
+| **M12 Verifica POS** | COMPLETO | da collaudo | Mod.RE.01-5 — DICHIARA radio, note sempre, firme CSE+Visti |
 
-#### 3 documenti Flusso B completati (v0.8.0)
+#### 4 documenti Flusso B completati
 - **Verbale di Riunione** (Mod.RE.01-10): tabella dati/presenti, argomenti, firme 3 blocchi
 - **Proposta di Sospensione CSE** (Mod.RE.01-14): lettera formale al RL
 - **Disposizione RL** (Mod.RE.01-15): gemella della Proposta, firma RL + Visto (GoSign esterno)
+- **Verifica POS** (Mod.RE.01-5): DICHIARA con esito radio (idoneo/integ/non idoneo), note sempre, 3 firme; storage `03_Verifiche-POS/`
 
 Tutti condividono il pattern pilota: ciclo BOZZA→FINALIZZATO→PROTOCOLLATO, vista Protocollati toggle+link FSA, auto-save, editor ricco, attributi tipografici M6, promemorio normativo UI-only.
 
@@ -48,7 +50,7 @@ Tutti condividono il pattern pilota: ciclo BOZZA→FINALIZZATO→PROTOCOLLATO, v
 
 | Componente | Stato | Note |
 |---|---|---|
-| SW dev-off/prod-on | ✅ | localhost = no SW (IS_DEV); SW v24 su GitHub Pages |
+| SW dev-off/prod-on | ✅ | localhost = no SW (IS_DEV); SW v25 su GitHub Pages |
 | Server locale no-cache | ✅ | `avvia.sh` + `server.py` con Cache-Control: no-store |
 | GitHub Pages | ✅ | `_config.yml` con `exclude:` per docs/moduli/shared (fix Jekyll) |
 | Menu | ✅ | Operatività = documenti prodotti; Documentazione = solo Conformità Documenti |
@@ -87,9 +89,15 @@ Con Verbale, Proposta e Disposizione costruiti, è il momento di estrarre le uti
 - **Import anagrafica**: SafeCant legge il file leggero prodotto da M4 F7
 - **Chiude il giro end-to-end**: Archivio → SafeCant → Verbale
 
-### (e) M17 Flusso C — pilota (Notifica Preliminare)
-- Upload PDF + metadati (protocollo, data, lettera) — nessun motore documenti
-- Sblocca poi M18-M21
+### (e) Flusso C — perimetro ridefinito (decisione PO)
+
+**DECISIONE SCOPE — Notifica Preliminare: NON costruita in SafeHub.**
+Il PO dispone già di un software interno dedicato che genera la Notifica Preliminare (contiene il database degli indirizzi degli enti) e la invia agli organi competenti. Ricostruirla in SafeHub sarebbe una duplicazione di uno strumento esistente e funzionante, per giunta sulla parte più complessa (indirizzi enti + invio).
+- **SafeHub NON genera la Notifica Preliminare.**
+- **Opzione futura (solo se servirà)**: SafeHub potrebbe limitarsi ad ARCHIVIARE una copia della notifica già prodotta dallo strumento esterno (riceverla come Flusso C, non generarla). Da valutare su esigenza concreta — non ora.
+- **Principio confermato**: SafeHub genera i documenti del flusso di lavoro del CSE (Flusso B); non duplica strumenti esterni che già assolvono bene a un compito specifico.
+
+Gli altri documenti Flusso C (Verifiche Enti, Disposizioni RL, ODS Ricevuti, POS Documentale) restano nel perimetro se e quando serviranno come archivio ricevuti.
 
 ### (f) M25 Cruscotto generale multi-cantiere
 - Aggrega scadenze critiche di tutti i cantieri in una vista
@@ -151,4 +159,4 @@ Motivazione: le regressioni sono state causate da rigenerazioni che riportavano 
 
 ---
 
-*Aggiornato al 02/06/2026 — v0.8.0 taggato. 3 documenti Flusso B completi. Menu riorganizzato. Regola di metodo anti-regressione mantenuta.*
+*Aggiornato al 02/06/2026 — v0.8.0 taggato. 4 documenti Flusso B (inclusa Verifica POS). Notifica Preliminare esclusa da SafeHub (software esterno già presente). Regola anti-regressione mantenuta.*

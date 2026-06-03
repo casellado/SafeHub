@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION ogni volta che cambiano asset locali cachati (CLAUDE.md §Git).
  */
 
-const CACHE_VERSION = 'safehub-archivio-v24';  // bump: M15 Disposizione RL
+const CACHE_VERSION = 'safehub-archivio-v26';  // bump: M-ITP Verifica ITP
 
 const ASSET_LOCALI = [
   './',
@@ -42,6 +42,8 @@ const ASSET_LOCALI = [
   './moduli/verbale-riunione/verbale-riunione.js',
   './moduli/proposta-sospensione/proposta-sospensione.js',
   './moduli/disposizione-rl/disposizione-rl.js',
+  './moduli/verifica-pos/verifica-pos.js',
+  './moduli/verifica-itp/verifica-itp.js',
   './templates/template.docx',
   './assets/icon-192.png',
   './assets/icon-512.png',

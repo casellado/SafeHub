@@ -57,6 +57,8 @@
   <script src="moduli/verbale-riunione/verbale-riunione.js"></script>
   <script src="moduli/proposta-sospensione/proposta-sospensione.js"></script>
   <script src="moduli/disposizione-rl/disposizione-rl.js"></script>
+  <script src="moduli/verifica-pos/verifica-pos.js"></script>
+  <script src="moduli/verifica-itp/verifica-itp.js"></script>
 </head>
 
 <body x-data x-cloak>
@@ -327,7 +329,12 @@
         <button class="nav-voce" @click="navigaA('verifica-pos')"
                 :class="{'attiva': $store.app.moduloAttivo === 'verifica-pos'}"
                 :aria-current="$store.app.moduloAttivo === 'verifica-pos' ? 'page' : null">
-          <span aria-hidden="true">✅</span> Verifica POS / ITP
+          <span aria-hidden="true">✅</span> Verifica POS
+        </button>
+        <button class="nav-voce" @click="navigaA('verifica-itp')"
+                :class="{'attiva': $store.app.moduloAttivo === 'verifica-itp'}"
+                :aria-current="$store.app.moduloAttivo === 'verifica-itp' ? 'page' : null">
+          <span aria-hidden="true">📋</span> Verifica ITP
         </button>
         <button class="nav-voce" @click="navigaA('sospensioni-rl')"
                 :class="{'attiva': $store.app.moduloAttivo === 'sospensioni-rl'}"
