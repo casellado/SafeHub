@@ -45,17 +45,14 @@ const NOTE_NORMATIVE_VS = [
 
 // ── Helper intestazione M6 ────────────────────────────────────────────────────
 
-const _VECCHI_PLACEHOLDER_VS = new Set([
-  'Mod.VS.01', 'Rev.2 — 05/2026', 'Verbale di sopralluogo',
-  '', 'verbale-sopralluogo',
-]);
-function _intestazioneVS() {
-  const m   = IMPOSTAZIONI_SERVICE.modulo('verbale-sopralluogo');
-  const _ok = (v, def) => (!v || _VECCHI_PLACEHOLDER_VS.has(v)) ? def : v;
+// FIX 3: nessun codice Mod.RE.xx — il verbale non è un modulo ANAS istituzionale.
+// modulo_versione = data del sopralluogo (identificativa, non un numero di revisione).
+function _intestazioneVS(verbale) {
+  const dataSopr = verbale?.metadati?.data_sopralluogo ?? '';
   return {
-    modulo_titolo:   _ok(m.titolo,   'Verbale di sopralluogo'),
-    modulo_codice:   _ok(m.codice,   'Mod.RE.01-VS'),
-    modulo_versione: _ok(m.versione, 'Vers.1.0'),
+    modulo_titolo:   'Verbale di Sopralluogo',
+    modulo_codice:   '',
+    modulo_versione: dataSopr ? (UTILS.formatData?.(dataSopr) ?? dataSopr) : '',
     logo_aziendale:  IMPOSTAZIONI_SERVICE.logo().png_base64 ?? null,
   };
 }
@@ -76,18 +73,36 @@ function _normalizzaHtmlSafeCant(html) {
     .replace(/<\/ol>/gi,       '');
 }
 
+// ── Ridimensionamento firme blocco (non in tabella) ───────────────────────────
+// FIX 1: le firme della tabella presenti sono già vincolate dalla colonna (OK).
+// Le firme di blocco (redattore e simili) sono <img> fuori da <td>: M6 le inietta
+// alla dimensione nativa del canvas (es. 700×240px iPad retina → ~18cm OOXML).
+// Le riscaliamo a 210×80px (stessa finestra di _scalafirma) prima di passare a M6.
+async function _scalafirmeCorpo(html) {
+  if (!html) return html;
+  const doc  = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
+  const imgs = [...doc.querySelectorAll('img')].filter(img => !img.closest('td, th'));
+  await Promise.all(imgs.map(async img => {
+    const src = img.getAttribute('src') || '';
+    if (!src.startsWith('data:image/')) return;
+    const scaled = await _scalafirma(src, 210, 80);
+    if (scaled) img.setAttribute('src', scaled);
+  }));
+  return doc.body.innerHTML;
+}
+
 // ── Blocco controfirma CSE (appeso IN CODA al corpo, fuori da contenitori) ────
+// FIX 2: tutto in una SINGOLA <p> con <br> inline → un solo <w:p> OOXML.
+// Word non può mai spezzare un paragrafo a metà: titolo+nome+firma restano uniti.
 async function _generaBloccoCse(firma) {
   if (!firma) return '';
-  const cseImg  = await _scalafirma(firma.firma_png_base64 ?? null);
-  const esc     = (s) => UTILS.escapeHtml(s ?? '');
-  const nome    = esc(firma.nome_cognome ?? '');
-  const pr      = 'data-indent="firma" data-align="center" style="padding-left:52%;text-align:center"';
-  const parti   = [];
-  parti.push(`<h2>Il Coordinatore per la Sicurezza in fase di Esecuzione</h2>`);
-  parti.push(`<p ${pr}>${nome}</p>`);
-  if (cseImg) parti.push(`<p ${pr}><img src="${cseImg}" alt="controfirma CSE"></p>`);
-  return parti.join('\n');
+  const cseImg = await _scalafirma(firma.firma_png_base64 ?? null);
+  const esc    = (s) => UTILS.escapeHtml(s ?? '');
+  const nome   = esc(firma.nome_cognome ?? '');
+  const pr     = 'data-indent="firma" data-align="center" style="padding-left:52%;text-align:center"';
+  let inner    = `Il Coordinatore per la Sicurezza in fase di Esecuzione<br><strong>${nome}</strong>`;
+  if (cseImg)  inner += `<br><img src="${cseImg}" alt="controfirma CSE">`;
+  return `<p ${pr}>${inner}</p>`;
 }
 
 // ── VerbaleSOPRALLUOGO Alpine component ──────────────────────────────────────
@@ -467,12 +482,14 @@ function VerbaleSOPRALLUOGO() {
       this.generando = true;
       try {
         this._salvaEditor();
-        const bloccoCse = await _generaBloccoCse(this.corrente.firma_cse ?? null);
-        // Corpo finale: corpo editato (o normalizzato) + blocco controfirma CSE in coda
-        const corpoDef  = (this.corrente.corpo_editato ?? this.corrente.corpo_normalizzato ?? '') + bloccoCse;
+        const bloccoCse  = await _generaBloccoCse(this.corrente.firma_cse ?? null);
+        const corpoBase  = this.corrente.corpo_editato ?? this.corrente.corpo_normalizzato ?? '';
+        // FIX 1: scala le firme di blocco (redattore) prima di passare a M6
+        const corpoScal  = await _scalafirmeCorpo(corpoBase);
+        const corpoDef   = corpoScal + bloccoCse;
         const out = await MOTORE_DOCX.generaDocumento({
           tipo: 'verbale-sopralluogo',
-          header: _intestazioneVS(),
+          header: _intestazioneVS(this.corrente),   // FIX 3: passa il verbale per la data
           corpo_html: corpoDef,
           formati: { html: true, docx: true },
         });
@@ -491,10 +508,12 @@ function VerbaleSOPRALLUOGO() {
       try {
         this._salvaEditor();
         const bloccoCse = await _generaBloccoCse(this.corrente.firma_cse ?? null);
-        const corpoDef  = (this.corrente.corpo_editato ?? this.corrente.corpo_normalizzato ?? '') + bloccoCse;
+        const corpoBase = this.corrente.corpo_editato ?? this.corrente.corpo_normalizzato ?? '';
+        const corpoScal = await _scalafirmeCorpo(corpoBase);
+        const corpoDef  = corpoScal + bloccoCse;
         const out = await MOTORE_DOCX.generaDocumento({
           tipo: 'verbale-sopralluogo',
-          header: _intestazioneVS(),
+          header: _intestazioneVS(this.corrente),
           corpo_html: corpoDef,
           formati: { html: true },
         });
@@ -513,10 +532,12 @@ function VerbaleSOPRALLUOGO() {
         if (!this._docxBlob) {
           this._salvaEditor();
           const bloccoCse = await _generaBloccoCse(this.corrente.firma_cse ?? null);
-          const corpoDef  = (this.corrente.corpo_editato ?? this.corrente.corpo_normalizzato ?? '') + bloccoCse;
+          const corpoBase = this.corrente.corpo_editato ?? this.corrente.corpo_normalizzato ?? '';
+          const corpoScal = await _scalafirmeCorpo(corpoBase);
+          const corpoDef  = corpoScal + bloccoCse;
           const out = await MOTORE_DOCX.generaDocumento({
             tipo: 'verbale-sopralluogo',
-            header: _intestazioneVS(),
+            header: _intestazioneVS(this.corrente),
             corpo_html: corpoDef,
             formati: { docx: true },
           });
