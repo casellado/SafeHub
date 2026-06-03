@@ -1,5 +1,5 @@
 # TASK — Stato di avanzamento SafeHub Archivio
-## Documento di sessione · aggiornato 03 giugno 2026
+## Documento di sessione · aggiornato 03 giugno 2026 (sessione 2)
 
 > Riferimento rapido per rientrare nel contesto a inizio sessione.
 > Per il design completo: `@docs/00-INDICE-Biblioteca-SafeHub.md`.
@@ -17,6 +17,7 @@
 | `v0.7.0-proposta-sospensione`  | `9f00812` | **M13 Proposta Sospensione + M6 tipografia**, collaudato |
 | `v0.8.0-disposizione-rl`       | `6bea1a0` | **M15 Disposizione RL + menu riorganizzato**, collaudato |
 | `v0.9.0-verifiche-pos-itp`     | `ec0e03e` | **M12 Verifica POS + M-ITP Verifica ITP (5° doc)**, collaudato |
+| `v0.10.0-fattorizzazione-flussob` | `1c7758e` | **Fattorizzazione Flusso B Tappe 0-5** — shared/flusso-b-helpers.js |
 
 Per tornare a un punto: `git checkout <tag>` (detached HEAD, sola lettura).
 Per sviluppare da un punto: `git checkout -b nome-branch <tag>`.
@@ -39,6 +40,7 @@ Per sviluppare da un punto: `git checkout -b nome-branch <tag>`.
 | **M15 Disposizione RL** | COMPLETO | v0.9.0 | Lettera RL Mod.RE.01-15 — tabella amm., VISTO/DISPONE, firme upload |
 | **M12 Verifica POS** | COMPLETO | v0.9.0 | Mod.RE.01-5 — DICHIARA radio, note sempre, 3 firme (CSE+Visti) |
 | **M-ITP Verifica ITP** | COMPLETO | v0.9.0 | Mod.RE.01-13 — firma RL, checklist 4 blocchi, non pertinente |
+| **Fattorizzazione Flusso B** | COMPLETO Tappe 0-5 | v0.10.0 | `shared/flusso-b-helpers.js` — utility comuni; Tappa 6 rinviata |
 
 #### 5 documenti Flusso B completati (v0.9.0)
 - **Verbale di Riunione** (Mod.RE.01-10): tabella dati/presenti, argomenti, firme 3 blocchi
@@ -49,11 +51,13 @@ Per sviluppare da un punto: `git checkout -b nome-branch <tag>`.
 
 Tutti condividono il pattern pilota: ciclo BOZZA→FINALIZZATO→PROTOCOLLATO, vista Protocollati toggle+link FSA, auto-save, editor ricco, attributi tipografici M6, promemorio normativo UI-only.
 
+**⚠ NUOVO DOCUMENTO Flusso B** — DEVE usare `shared/flusso-b-helpers.js` per le utility comuni. NON copiare le funzioni localmente: _scalafirma, _leggiBase64, _scriviFile, FirmaCanvas, _serNodo, _serEditor, _editorFromHtml, _applicaInterlinea15 sono già disponibili a livello globale.
+
 ### 🔧 INFRASTRUTTURA
 
 | Componente | Stato | Note |
 |---|---|---|
-| SW dev-off/prod-on | ✅ | localhost = no SW (IS_DEV); SW v26 su GitHub Pages |
+| SW dev-off/prod-on | ✅ | localhost = no SW (IS_DEV); SW v27 su GitHub Pages |
 | Server locale no-cache | ✅ | `avvia.sh` + `server.py` con Cache-Control: no-store |
 | GitHub Pages | ✅ | `_config.yml` con `exclude:` per docs/moduli/shared (fix Jekyll) |
 | Menu | ✅ | Operatività = documenti prodotti; Documentazione = solo Conformità Documenti |
@@ -63,19 +67,17 @@ Tutti condividono il pattern pilota: ciclo BOZZA→FINALIZZATO→PROTOCOLLATO, v
 
 ## ⬜ PROSSIMI PASSI (per la prossima sessione)
 
-### (a) FATTORIZZAZIONE shared/flusso-b-helpers.js ← MATURA CON 5 DOCUMENTI
-Con 5 documenti Flusso B costruiti, la fattorizzazione è **urgente e matura**.
-Ogni fix sulle utility (es. `:x-model` invalido nella Verifica ITP) si deve applicare MANUALMENTE a tutti i moduli — questo è un rischio operativo reale.
+### (a) FATTORIZZAZIONE Tappa 6 — FB_creaMetodiBase ← DA VALUTARE CON CTO
+Tappe 0-5 completate (v0.10.0). Rimane la Tappa 6: estrarre i metodi Alpine con stato/storage
+(`_bozzeDir`, `_caricaLista`, `_caricaProtocollati`, `apriFileProt`, `salvaProtocollo`, ecc.)
+in una factory `FB_creaMetodiBase(storageBasePath)`.
 
-Cosa estrarre in `shared/flusso-b-helpers.js`:
-- `_scalafirma` / `_ritagliaCanvas` / `_ptCanvas` — gestione canvas firma
-- `FirmaCanvas` Alpine component — canvas firma riusabile
-- `_serEditor` / `_editorFromHtml` — serializzatore/loader editor ricco
-- `_leggiBase64` / `_scriviFile` — utility filesystem
-- `_applicaInterlinea15` — helper interlinea testi editor
-- Pattern ciclo protocollati (`_caricaProtocollati`, `apriFileProt`, `salvaProtocollo`)
+**Rischi da risolvere prima**: i getter (statoLabel, salvataggioLabel, etichettaStato) NON possono
+stare nella factory con Object.assign/spread (li congelerebbe). Soluzioni possibili:
+- Option A: `Object.getOwnPropertyDescriptors` (preserva i getter come vere property)
+- Option B: getter fuori dalla factory, in ogni modulo (già adottata per Tappe 0-5)
 
-**Metodo**: test di non-regressione su TUTTI e 5 i documenti prima e dopo. Regola anti-regressione obbligatoria.
+Da valutare separatamente col PO — la factory taglia ~200 righe per modulo ma è più invasiva.
 
 ### (b) Verbale di Sopralluogo (Flusso A)
 Il documento più "SafeCant-native": arriva come JSON dall'iPad dei colleghi, il PO lo rifinisce e lo controfirma. Design: `@docs/FlussoA-Operativita-Sopralluogo-M7-M10.md`.
@@ -143,4 +145,4 @@ Ogni task che modifica codice esistente DEVE includere:
 
 ---
 
-*Aggiornato al 03/06/2026 — v0.9.0 taggato. 5 documenti Flusso B completi. Fattorizzazione matura.*
+*Aggiornato al 03/06/2026 (sessione 2) — v0.10.0 taggato. Fattorizzazione Flusso B Tappe 0-5 completata e collaudata. shared/flusso-b-helpers.js è l'unica fonte per le utility comuni. Tappa 6 (factory Alpine) da valutare separatamente.*
