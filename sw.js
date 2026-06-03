@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION ogni volta che cambiano asset locali cachati (CLAUDE.md §Git).
  */
 
-const CACHE_VERSION = 'safehub-archivio-v27';  // bump: fattorizzazione flusso-b-helpers
+const CACHE_VERSION = 'safehub-archivio-v28';  // bump: verbale-sopralluogo (Flusso A)
 
 const ASSET_LOCALI = [
   './',
@@ -45,6 +45,7 @@ const ASSET_LOCALI = [
   './moduli/disposizione-rl/disposizione-rl.js',
   './moduli/verifica-pos/verifica-pos.js',
   './moduli/verifica-itp/verifica-itp.js',
+  './moduli/verbale-sopralluogo/verbale-sopralluogo.js',
   './templates/template.docx',
   './assets/icon-192.png',
   './assets/icon-512.png',

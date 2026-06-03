@@ -62,6 +62,7 @@
   <script src="moduli/disposizione-rl/disposizione-rl.js"></script>
   <script src="moduli/verifica-pos/verifica-pos.js"></script>
   <script src="moduli/verifica-itp/verifica-itp.js"></script>
+  <script src="moduli/verbale-sopralluogo/verbale-sopralluogo.js"></script>
 </head>
 
 <body x-data x-cloak>
@@ -344,10 +345,10 @@
                 :aria-current="$store.app.moduloAttivo === 'sospensioni-rl' ? 'page' : null">
           <span aria-hidden="true">📥</span> Sospensioni RL
         </button>
-        <button class="nav-voce sospesa"
-                disabled aria-disabled="true"
-                title="In attesa — Flusso A (da costruire dopo Flusso B)">
-          <span aria-hidden="true">⏸</span> Verbali Sopralluogo
+        <button class="nav-voce" @click="navigaA('verbale-sopralluogo')"
+                :class="{'attiva': $store.app.moduloAttivo === 'verbale-sopralluogo'}"
+                :aria-current="$store.app.moduloAttivo === 'verbale-sopralluogo' ? 'page' : null">
+          <span aria-hidden="true">📝</span> Verbali Sopralluogo
         </button>
 
         <!-- GESTIONE -->
