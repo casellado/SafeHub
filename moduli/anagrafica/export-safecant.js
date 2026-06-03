@@ -19,6 +19,7 @@ function ExportSafeCant() {
     caricamento:            false,
     exporting:              false,
     confermaAperta:         false,
+    validazione:            null,   // { ok: bool, warnings: [] } — risultato _validaPreExport
 
     // Stato export (tracciato per il badge "modifiche non esportate")
     ultimoExport:           null,   // ISO timestamp dell'ultimo export di questo cantiere
@@ -40,6 +41,13 @@ function ExportSafeCant() {
       return this.datiGeneratoIl > this.ultimoExport;
     },
 
+    // ── Apertura pannello conferma con pre-validazione ────────────────────────
+
+    apriConferma() {
+      this.validazione    = ANAGRAFICA_SERVICE.validaPreExport();
+      this.confermaAperta = true;
+    },
+
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     init() {
@@ -52,6 +60,7 @@ function ExportSafeCant() {
       if (id !== this._cantiereId) {
         this._cantiereId          = id;
         this.confermaAperta       = false;
+        this.validazione          = null;
         this.ultimoExport         = null;
         this.ultimoExportCantiere = null;
         this.riepilogo            = null;
@@ -267,7 +276,7 @@ const _TEMPLATE_EXPORT = `
 
       <!-- ── Pulsante export ─────────────────────────────────────────────── -->
       <div x-show="!confermaAperta" class="space-y-3">
-        <button @click="confermaAperta = true"
+        <button @click="apriConferma()"
                 :disabled="!riepilogo"
                 class="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold
                        py-3 px-6 rounded-xl transition-colors
@@ -305,6 +314,26 @@ const _TEMPLATE_EXPORT = `
           Primo export: ti verrà chiesto di selezionare la cartella <strong>SafeHub-Anagrafiche</strong> su OneDrive.
           Verrà ricordata automaticamente per i prossimi export.
         </div>
+
+        <!-- ── Warning incompletezze (non bloccante) ───────────────────────── -->
+        <template x-if="validazione && !validazione.ok">
+          <div class="border border-amber-200 bg-amber-50 rounded-lg px-3 py-3 space-y-2">
+            <p class="text-xs font-semibold text-amber-800">
+              Alcuni dati sono incompleti — SafeCant potrebbe non visualizzarli correttamente.
+              Puoi esportare comunque e correggere alla fonte prima del prossimo export.
+            </p>
+            <ul class="space-y-1.5" role="list">
+              <template x-for="w in validazione.warnings" :key="w.etichetta">
+                <li class="text-xs text-amber-700">
+                  <span class="font-medium" x-text="'⚠ ' + w.etichetta"></span>
+                  <template x-if="w.dettaglio && w.dettaglio.length">
+                    <span class="text-amber-600" x-text="': ' + w.dettaglio.join(', ')"></span>
+                  </template>
+                </li>
+              </template>
+            </ul>
+          </div>
+        </template>
 
         <div class="flex gap-3">
           <button @click="confermaAperta = false"

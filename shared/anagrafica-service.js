@@ -554,6 +554,58 @@ const ANAGRAFICA_SERVICE = (() => {
   };
 
   /**
+   * Valida l'anagrafica prima dell'export: rileva incompletezze che renderebbero
+   * i dati inutilizzabili a valle (SafeCant). NON blocca l'export.
+   * @returns {{ ok: boolean, warnings: Array<{etichetta:string, dettaglio:string[]}> }}
+   */
+  const validaPreExport = () => {
+    if (!_dati) return { ok: true, warnings: [] };
+    const warnings = [];
+    const attive = (col) => (_dati[col] ?? []).filter(e => !e._cestino);
+
+    // 1. Imprese senza ragione sociale — non identificabili in SafeCant
+    const impSenzaNome = attive('imprese').filter(i => !i.ragioneSociale?.trim());
+    if (impSenzaNome.length)
+      warnings.push({ etichetta: `${impSenzaNome.length} impresa/e senza ragione sociale`, dettaglio: [] });
+
+    // 2. Imprese senza tipoRapporto — SafeCant non può categorizzarle né mostrare la checklist documenti
+    const impSenzaTipo = attive('imprese').filter(i => !i.tipoRapporto);
+    if (impSenzaTipo.length)
+      warnings.push({
+        etichetta: `${impSenzaTipo.length} impresa/e senza tipo rapporto (appalto/subappalto/…)`,
+        dettaglio: impSenzaTipo.map(i => i.ragioneSociale?.trim() || `(id: ${i.id})`),
+      });
+
+    // 3. Lavoratori senza impresa_id — orfani, non appariranno sotto nessuna impresa
+    const lavSenzaImp = attive('lavoratori').filter(l => !l.impresa_id);
+    if (lavSenzaImp.length)
+      warnings.push({
+        etichetta: `${lavSenzaImp.length} lavoratore/i senza impresa associata`,
+        dettaglio: lavSenzaImp.map(l => [l.cognome, l.nome].filter(Boolean).join(' ') || `(id: ${l.id})`),
+      });
+
+    // 4. Lavoratori senza nome né cognome — non identificabili
+    const lavSenzaNome = attive('lavoratori').filter(l => !l.cognome?.trim() && !l.nome?.trim());
+    if (lavSenzaNome.length)
+      warnings.push({ etichetta: `${lavSenzaNome.length} lavoratore/i senza nome né cognome`, dettaglio: [] });
+
+    // 5. Mezzi senza impresa_id — orfani
+    const mezziSenzaImp = attive('mezzi').filter(m => !m.impresa_id);
+    if (mezziSenzaImp.length)
+      warnings.push({
+        etichetta: `${mezziSenzaImp.length} mezzo/i senza impresa associata`,
+        dettaglio: mezziSenzaImp.map(m => [m.marca, m.modello].filter(Boolean).join(' ') || `(id: ${m.id})`),
+      });
+
+    // 6. Attrezzature senza impresa_id — orfane
+    const attSenzaImp = attive('attrezzature').filter(a => !a.impresa_id);
+    if (attSenzaImp.length)
+      warnings.push({ etichetta: `${attSenzaImp.length} attrezzatura/e senza impresa associata`, dettaglio: [] });
+
+    return { ok: warnings.length === 0, warnings };
+  };
+
+  /**
    * Genera la variante LEGGERA dell'anagrafica corrente, pronta per SafeCant.
    * Schema identico al canonico v2.0 — solo i base64 sono "".
    * Entità e sotto-documenti cestinati vengono esclusi.
@@ -838,7 +890,7 @@ const ANAGRAFICA_SERVICE = (() => {
     aggiungi, aggiorna, cestina, ripristina, eliminaDefinitivamente,
     calcolaConformita, calcolaScadenzeImpresa,
     calcolaConformitaLavoratore, calcolaScadenzeLavoratore,
-    esportaLeggera,
+    esportaLeggera, validaPreExport,
     calcolaConformitaNolo, calcolaScadenzeNolo, collegaNolo,
     calcolaConformitaMezzo, calcolaScadenzeMezzo,
     calcolaConformitaAttrezzatura, calcolaScadenzeAttrezzatura,
