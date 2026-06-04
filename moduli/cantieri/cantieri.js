@@ -24,12 +24,15 @@ function Cruscotto() {
 
     get cantieriFiltrati() {
       const lista = Alpine.store('cantieri').lista;
-      if (this.filtro === 'attivi') return lista.filter(c => c.stato !== 'concluso-archiviato');
-      return lista;
+      if (this.filtro === 'attivi')  return lista.filter(c => c.stato !== 'concluso-archiviato' && c.stato !== 'cestinato');
+      if (this.filtro === 'cestino') return lista.filter(c => c.stato === 'cestinato');
+      // 'tutti': esclude cestinati — quelli vivono nel cestino, non nella lista operativa
+      return lista.filter(c => c.stato !== 'cestinato');
     },
 
-    get nAttivi()    { return Alpine.store('cantieri').lista.filter(c => c.stato !== 'concluso-archiviato').length; },
+    get nAttivi()    { return Alpine.store('cantieri').lista.filter(c => c.stato !== 'concluso-archiviato' && c.stato !== 'cestinato').length; },
     get nArchiviati(){ return Alpine.store('cantieri').lista.filter(c => c.stato === 'concluso-archiviato').length; },
+    get nCestinati() { return Alpine.store('cantieri').lista.filter(c => c.stato === 'cestinato').length; },
 
     init() {
       // Il cruscotto ascolta i cambi di cantiere per aggiornare la UI (es. selezione evidenziata)
@@ -144,10 +147,11 @@ function Cruscotto() {
     formatData(iso) { return UTILS.formatDataOra(iso).slice(0, 10); },
 
     badgeStato(c) {
-      if (!c.scaffold_completo)             return { label: 'Incompleto', cls: 'bg-amber-100 text-amber-800' };
-      if (c.stato === 'concluso-archiviato')return { label: 'Archiviato', cls: 'bg-slate-100 text-slate-500' };
-      if (c.stato === 'sospeso')            return { label: 'Sospeso',    cls: 'bg-orange-100 text-orange-700' };
-      return                                       { label: 'Attivo',     cls: 'bg-green-100 text-green-700' };
+      if (!c.scaffold_completo)             return { label: 'Incompleto',  cls: 'bg-amber-100 text-amber-800' };
+      if (c.stato === 'cestinato')          return { label: 'Nel cestino', cls: 'bg-red-100 text-red-600' };
+      if (c.stato === 'concluso-archiviato')return { label: 'Archiviato',  cls: 'bg-slate-100 text-slate-500' };
+      if (c.stato === 'sospeso')            return { label: 'Sospeso',     cls: 'bg-orange-100 text-orange-700' };
+      return                                       { label: 'Attivo',      cls: 'bg-green-100 text-green-700' };
     },
   };
 }
@@ -165,9 +169,11 @@ function SchedaCantiere() {
     salvando:          false,
     archiviando:       false,
     riattivando:       false,
+    cestinando:        false,
     feedbackMsg:       null,
     confermaArchivia:  false,
     confermaRiattiva:  false,
+    confermaCestina:   false,
 
     init() {
       this.id = Alpine.store('cantiere').id;
@@ -187,7 +193,8 @@ function SchedaCantiere() {
     async caricaDati() {
       this.caricamento = true;
       this.confermaArchivia = false;
-      this.confermaRiattiva  = false;
+      this.confermaRiattiva = false;
+      this.confermaCestina  = false;
       try {
         const anagrafica = await CANTIERI_SERVICE.leggiAnagrafica(this.id);
         // Copia profonda per editing locale (non muta il service)
@@ -254,6 +261,41 @@ function SchedaCantiere() {
         NOTIFICHE.successo(`Cantiere ${this.id} riattivato`);
       } catch (err) {
         ERRORI.gestisciErrore('scheda-cantiere/riattiva', err);
+      } finally {
+        this.riattivando = false;
+      }
+    },
+
+    async confermaCestinaFn() {
+      this.cestinando = true;
+      try {
+        const ts = new Date().toISOString();
+        await CANTIERI_SERVICE.aggiornaDatiLotto(this.id, { ...this.lotto, stato: 'cestinato', _cestinato_il: ts });
+        await Alpine.store('cantieri').ricarica();
+        this.lotto.stato = 'cestinato';
+        this.lotto._cestinato_il = ts;
+        this.confermaCestina = false;
+        NOTIFICHE.successo(`Cantiere ${this.id} spostato nel cestino`);
+      } catch (err) {
+        ERRORI.gestisciErrore('scheda-cantiere/cestina', err);
+      } finally {
+        this.cestinando = false;
+      }
+    },
+
+    async confermaRipristinaDaCestinoFn() {
+      this.riattivando = true;
+      try {
+        // Rimuove _cestinato_il dal payload prima di salvare
+        const { _cestinato_il, ...lottoSenza } = this.lotto;
+        await CANTIERI_SERVICE.aggiornaDatiLotto(this.id, { ...lottoSenza, stato: 'attivo' });
+        await Alpine.store('cantieri').ricarica();
+        this.lotto.stato = 'attivo';
+        delete this.lotto._cestinato_il;
+        this.confermaCestina = false;
+        NOTIFICHE.successo(`Cantiere ${this.id} ripristinato dal cestino`);
+      } catch (err) {
+        ERRORI.gestisciErrore('scheda-cantiere/ripristina-cestino', err);
       } finally {
         this.riattivando = false;
       }
@@ -351,6 +393,15 @@ const _TEMPLATE_CRUSCOTTO = `
             class="px-4 py-1.5 text-sm rounded-full transition-colors
                    focus:outline-none focus:ring-2 focus:ring-blue-500">
       Tutti (<span x-text="nAttivi + nArchiviati"></span>)
+    </button>
+    <button @click="filtro='cestino'" role="tab" :aria-selected="filtro==='cestino'"
+            :class="filtro==='cestino'
+              ? 'bg-red-100 text-red-700 font-semibold'
+              : 'text-slate-500 hover:text-slate-800'"
+            class="px-4 py-1.5 text-sm rounded-full transition-colors
+                   focus:outline-none focus:ring-2 focus:ring-red-500"
+            x-show="nCestinati > 0">
+      🗑 Cestino (<span x-text="nCestinati"></span>)
     </button>
   </div>
 
@@ -489,8 +540,9 @@ const _TEMPLATE_SCHEDA = `
         <span x-show="feedbackMsg" x-text="feedbackMsg"
               class="text-sm text-green-700 bg-green-50 border border-green-200
                      px-3 py-1 rounded-full" aria-live="polite"></span>
-        <button @click="salva()" :disabled="salvando"
-                class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white
+        <button @click="salva()" :disabled="salvando || lotto.stato === 'cestinato'"
+                :title="lotto.stato === 'cestinato' ? 'Ripristina il cantiere dal cestino per modificarlo' : ''"
+                class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white
                        text-sm font-medium px-5 py-2 rounded-lg transition-colors
                        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
           <span x-text="salvando ? 'Salvataggio…' : 'Salva'"></span>
@@ -798,8 +850,8 @@ const _TEMPLATE_SCHEDA = `
       </div>
     </details>
 
-    <!-- ── ZONA PERICOLO: Archiviazione ───────────────────── -->
-    <div x-show="lotto.stato !== 'concluso-archiviato'"
+    <!-- ── ZONA PERICOLO: Archiviazione (nascosta se già archiviato o cestinato) ── -->
+    <div x-show="lotto.stato !== 'concluso-archiviato' && lotto.stato !== 'cestinato'"
          class="mt-6 border border-red-200 rounded-xl p-4 bg-red-50">
       <h2 class="text-sm font-semibold text-red-800 mb-1">Archivia cantiere</h2>
       <p class="text-xs text-red-600 mb-3">
@@ -826,6 +878,38 @@ const _TEMPLATE_SCHEDA = `
                        focus:outline-none focus:ring-2 focus:ring-slate-400 rounded px-2">
           Annulla
         </button>
+      </div>
+    </div>
+
+    <!-- ── Sposta nel cestino (visibile per tutti gli stati non-cestinato) ── -->
+    <div x-show="lotto.stato !== 'cestinato'"
+         class="mt-4 border border-slate-200 rounded-xl p-4 bg-white">
+      <div class="flex items-center justify-between gap-4">
+        <p class="text-sm text-slate-500">
+          Sposta nel cestino per rimuoverlo dalle liste operative. Potrai ripristinarlo in qualsiasi momento.
+        </p>
+        <div x-show="!confermaCestina">
+          <button @click="confermaCestina = true"
+                  class="text-sm font-medium text-slate-600 border border-slate-300 bg-white
+                         px-4 py-2 rounded-lg hover:bg-slate-100 transition-colors whitespace-nowrap
+                         focus:outline-none focus:ring-2 focus:ring-slate-400">
+            🗑 Nel cestino…
+          </button>
+        </div>
+        <div x-show="confermaCestina" class="flex items-center gap-3">
+          <span class="text-xs text-slate-600 font-medium whitespace-nowrap">Spostare nel cestino?</span>
+          <button @click="confermaCestinaFn()" :disabled="cestinando"
+                  class="text-sm font-semibold bg-slate-700 hover:bg-slate-800 text-white
+                         px-4 py-2 rounded-lg transition-colors whitespace-nowrap
+                         focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2">
+            <span x-text="cestinando ? 'Spostamento…' : 'Sì, nel cestino'"></span>
+          </button>
+          <button @click="confermaCestina = false"
+                  class="text-sm text-slate-500 hover:text-slate-700
+                         focus:outline-none focus:ring-2 focus:ring-slate-400 rounded px-2">
+            Annulla
+          </button>
+        </div>
       </div>
     </div>
 
@@ -857,6 +941,34 @@ const _TEMPLATE_SCHEDA = `
                          focus:outline-none focus:ring-2 focus:ring-slate-400 rounded px-2">
             Annulla
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Blocco ripristino dal cestino (quando cestinato) -->
+    <div x-show="lotto.stato === 'cestinato'"
+         class="mt-4 border border-red-200 rounded-xl p-4 bg-red-50">
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <p class="text-sm font-medium text-red-800">Cantiere nel cestino</p>
+          <p class="text-xs text-red-600 mt-0.5">
+            Non compare nelle liste operative. Ripristinalo per tornare a lavorarci.
+            <template x-if="lotto._cestinato_il">
+              <span x-text="' Cestinato il ' + new Date(lotto._cestinato_il).toLocaleDateString('it-IT') + '.'"></span>
+            </template>
+          </p>
+        </div>
+        <div x-show="!riattivando">
+          <button @click="confermaRipristinaDaCestinoFn()"
+                  class="text-sm font-medium text-emerald-700 border border-emerald-300 bg-white
+                         px-4 py-2 rounded-lg hover:bg-emerald-50 transition-colors whitespace-nowrap
+                         focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            ↩ Ripristina cantiere
+          </button>
+        </div>
+        <div x-show="riattivando"
+             class="text-sm text-slate-500 italic whitespace-nowrap">
+          Ripristino…
         </div>
       </div>
     </div>
