@@ -164,8 +164,10 @@ function SchedaCantiere() {
     caricamento:       true,
     salvando:          false,
     archiviando:       false,
+    riattivando:       false,
     feedbackMsg:       null,
     confermaArchivia:  false,
+    confermaRiattiva:  false,
 
     init() {
       this.id = Alpine.store('cantiere').id;
@@ -185,6 +187,7 @@ function SchedaCantiere() {
     async caricaDati() {
       this.caricamento = true;
       this.confermaArchivia = false;
+      this.confermaRiattiva  = false;
       try {
         const anagrafica = await CANTIERI_SERVICE.leggiAnagrafica(this.id);
         // Copia profonda per editing locale (non muta il service)
@@ -238,6 +241,21 @@ function SchedaCantiere() {
         ERRORI.gestisciErrore('scheda-cantiere/archivia', err);
       } finally {
         this.archiviando = false;
+      }
+    },
+
+    async confermaRiattivazioneFn() {
+      this.riattivando = true;
+      try {
+        await CANTIERI_SERVICE.aggiornaDatiLotto(this.id, { ...this.lotto, stato: 'attivo' });
+        await Alpine.store('cantieri').ricarica();
+        this.lotto.stato = 'attivo';
+        this.confermaRiattiva = false;
+        NOTIFICHE.successo(`Cantiere ${this.id} riattivato`);
+      } catch (err) {
+        ERRORI.gestisciErrore('scheda-cantiere/riattiva', err);
+      } finally {
+        this.riattivando = false;
       }
     },
   };
@@ -811,11 +829,36 @@ const _TEMPLATE_SCHEDA = `
       </div>
     </div>
 
-    <!-- Badge cantiere archiviato (quando già archiviato) -->
+    <!-- Blocco riattivazione (quando già archiviato) -->
     <div x-show="lotto.stato === 'concluso-archiviato'"
-         class="mt-4 text-sm text-slate-500 bg-slate-50 border border-slate-200
-                rounded-xl p-4 text-center">
-      Cantiere archiviato — sola lettura. I dati sono conservati.
+         class="mt-4 border border-slate-200 rounded-xl p-4 bg-slate-50">
+      <div class="flex items-center justify-between gap-4">
+        <p class="text-sm text-slate-500">
+          Cantiere archiviato — sola lettura. I dati sono conservati.
+        </p>
+        <div x-show="!confermaRiattiva">
+          <button @click="confermaRiattiva = true"
+                  class="text-sm font-medium text-emerald-700 border border-emerald-300 bg-white
+                         px-4 py-2 rounded-lg hover:bg-emerald-50 transition-colors whitespace-nowrap
+                         focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            Riattiva cantiere…
+          </button>
+        </div>
+        <div x-show="confermaRiattiva" class="flex items-center gap-3">
+          <span class="text-xs text-slate-600 font-medium whitespace-nowrap">Riportare ad attivo?</span>
+          <button @click="confermaRiattivazioneFn()" :disabled="riattivando"
+                  class="text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white
+                         px-4 py-2 rounded-lg transition-colors whitespace-nowrap
+                         focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
+            <span x-text="riattivando ? 'Riattivazione…' : 'Sì, riattiva'"></span>
+          </button>
+          <button @click="confermaRiattiva = false"
+                  class="text-sm text-slate-500 hover:text-slate-700
+                         focus:outline-none focus:ring-2 focus:ring-slate-400 rounded px-2">
+            Annulla
+          </button>
+        </div>
+      </div>
     </div>
 
   </div>
