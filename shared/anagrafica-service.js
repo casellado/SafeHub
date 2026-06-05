@@ -368,6 +368,123 @@ const ANAGRAFICA_SERVICE = (() => {
   };
 
   // ================================================================
+  // Funzioni PARAMETRICHE per il Cestino globale (#2b)
+  // Operano su un cantiere_id ARBITRARIO senza cambiare il cantiere corrente.
+  // NON toccano _cantiereId né _dati (salvo se il cantiere parametrico == quello corrente).
+  // ================================================================
+
+  // Mappa collezione → etichetta leggibile (usata da leggiEntitaCestinate)
+  const _ETICHETTE_COLL = {
+    imprese:             'Impresa',
+    lavoratori:          'Lavoratore',
+    mezzi:               'Mezzo',
+    attrezzature:        'Attrezzatura',
+    noli:                'Nolo',
+    persone_committente: 'Personale sicurezza',
+    persone_terzi:       'Ente terzo',
+  };
+
+  // Ricava il nome identificativo di un'entità in base alla collezione
+  const _nomeEntita = (collezione, e) => {
+    if (collezione === 'imprese')
+      return e.ragioneSociale || e.id;
+    if (collezione === 'lavoratori' || collezione === 'persone_committente' || collezione === 'persone_terzi')
+      return [e.cognome, e.nome].filter(Boolean).join(' ') || e.id;
+    if (collezione === 'mezzi')
+      return [e.tipologia, e.marca, e.modello].filter(Boolean).join(' ') || e.id;
+    if (collezione === 'attrezzature')
+      return [e.tipologia, e.descrizione].filter(Boolean).join(' — ') || e.id;
+    if (collezione === 'noli')
+      return e.oggetto || (e.tipoNolo ? `Nolo ${e.tipoNolo}` : null) || e.id;
+    return e.id;
+  };
+
+  /**
+   * Legge il file anagrafica di un cantiere arbitrario e restituisce tutte
+   * le entità con _cestino===true, arricchite con tipo, collezione e cantiere.
+   *
+   * @param {string} cantiere_id
+   * @returns {Promise<Array>}
+   */
+  const leggiEntitaCestinate = async (cantiere_id) => {
+    const anag      = await CANTIERI_SERVICE.leggiAnagrafica(cantiere_id);
+    const risultati = [];
+    for (const col of Object.keys(_ETICHETTE_COLL)) {
+      for (const e of (anag[col] ?? [])) {
+        if (!e._cestino) continue;
+        risultati.push({
+          id:            e.id,
+          collezione:    col,
+          tipo:          _ETICHETTE_COLL[col],
+          nome:          _nomeEntita(col, e),
+          cantiere_id,
+          cantiere_nome: anag.lotto?.nome ?? '',
+          _eliminato_il: e._eliminato_il ?? null,
+        });
+      }
+    }
+    return risultati;
+  };
+
+  /**
+   * Ripristina un'entità cestinata in un cantiere ARBITRARIO.
+   * Legge il file fresco, rimuove _cestino e _eliminato_il, riscrive.
+   * NON cambia il cantiere corrente; se il cantiere è quello corrente, aggiorna _dati.
+   *
+   * @param {string} cantiere_id
+   * @param {string} collezione
+   * @param {string} entita_id
+   */
+  const ripristinaEntitaArbitraria = async (cantiere_id, collezione, entita_id) => {
+    const anag = await CANTIERI_SERVICE.leggiAnagrafica(cantiere_id);
+    const coll = [...(anag[collezione] ?? [])];
+    const idx  = coll.findIndex(e => e.id === entita_id);
+    if (idx < 0) throw new Error(`Entità ${entita_id} non trovata in ${collezione}/${cantiere_id}`);
+
+    const { _cestino, _eliminato_il, ...resto } = coll[idx];
+    coll[idx]         = { ...resto, modifiedAt: new Date().toISOString() };
+    anag[collezione]  = coll;
+    anag.generato_il  = new Date().toISOString();
+
+    const root    = FILESYSTEM.getHandleAttivo();
+    const cantDir = await root.getDirectoryHandle(cantiere_id);
+    const anagDir = await cantDir.getDirectoryHandle('15_Anagrafica');
+    await FILESYSTEM.scriviJson(anagDir, `anagrafica_${cantiere_id}.json`, anag);
+
+    // Aggiorna _dati in memoria solo se è il cantiere attualmente caricato
+    if (cantiere_id === _cantiereId) {
+      _dati = anag;
+      await _aggiornaCache();
+      document.dispatchEvent(new CustomEvent('anagrafica-caricata', { detail: { cantiereId: cantiere_id } }));
+    }
+  };
+
+  /**
+   * Elimina definitivamente un'entità cestinata in un cantiere ARBITRARIO.
+   * Stessa struttura di ripristinaEntitaArbitraria: legge fresco, filtra, riscrive.
+   *
+   * @param {string} cantiere_id
+   * @param {string} collezione
+   * @param {string} entita_id
+   */
+  const eliminaEntitaArbitraria = async (cantiere_id, collezione, entita_id) => {
+    const anag = await CANTIERI_SERVICE.leggiAnagrafica(cantiere_id);
+    anag[collezione] = (anag[collezione] ?? []).filter(e => e.id !== entita_id);
+    anag.generato_il = new Date().toISOString();
+
+    const root    = FILESYSTEM.getHandleAttivo();
+    const cantDir = await root.getDirectoryHandle(cantiere_id);
+    const anagDir = await cantDir.getDirectoryHandle('15_Anagrafica');
+    await FILESYSTEM.scriviJson(anagDir, `anagrafica_${cantiere_id}.json`, anag);
+
+    if (cantiere_id === _cantiereId) {
+      _dati = anag;
+      await _aggiornaCache();
+      document.dispatchEvent(new CustomEvent('anagrafica-caricata', { detail: { cantiereId: cantiere_id } }));
+    }
+  };
+
+  // ================================================================
   // Calcolo conformità impresa (funzione pura — zero effetti collaterali)
   // ================================================================
 
@@ -888,6 +1005,7 @@ const ANAGRAFICA_SERVICE = (() => {
     carica, salvaCollezione,
     get, getEntita,
     aggiungi, aggiorna, cestina, ripristina, eliminaDefinitivamente,
+    leggiEntitaCestinate, ripristinaEntitaArbitraria, eliminaEntitaArbitraria,
     calcolaConformita, calcolaScadenzeImpresa,
     calcolaConformitaLavoratore, calcolaScadenzeLavoratore,
     esportaLeggera, validaPreExport,
