@@ -218,6 +218,12 @@ function ListaPersoneTerzi() {
       this.formDati = { ...this.formDati };
       this.modDati = true;
     },
+
+    storicoExtra(titolo) {
+      return (this.formDati.documenti_extra ?? [])
+        .filter(e => e._cestino && e.titolo === titolo)
+        .sort((a, b) => (b._eliminato_il ?? '').localeCompare(a._eliminato_il ?? ''));
+    },
   };
 }
 
@@ -640,6 +646,32 @@ const _TEMPLATE_PT = `
                                    focus:outline-none focus:ring-1 focus:ring-slate-400 rounded px-0.5"
                             :aria-label="'Scarica ' + ex.titolo" title="Scarica">⬇</button>
                   </div>
+                  <!-- Storico: versioni precedenti di questo documento (sola lettura) -->
+                  <template x-if="storicoExtra(ex.titolo).length > 0">
+                    <details class="mt-1.5 text-xs">
+                      <summary class="cursor-pointer text-slate-400 hover:text-slate-600 select-none">
+                        Storico (<span x-text="storicoExtra(ex.titolo).length"></span> vers. prec.)
+                      </summary>
+                      <ul class="mt-1 ml-1 border-l border-slate-100 pl-2 space-y-0.5">
+                        <template x-for="v in storicoExtra(ex.titolo)" :key="(v._eliminato_il??'')+(v.filename??'')">
+                          <li class="flex items-center gap-2 text-slate-400">
+                            <span class="flex-shrink-0" x-text="UTILS.formatData(v._eliminato_il)"></span>
+                            <button x-show="v.base64" type="button"
+                                    @click.stop="ALLEGATI.apriAllegato(v.base64, v.filename)"
+                                    class="text-blue-500 hover:text-blue-700 truncate text-left
+                                           focus:outline-none focus:ring-1 focus:ring-blue-400 rounded"
+                                    :title="'Apri ' + v.filename">
+                              📎 <span x-text="v.filename"></span>
+                            </button>
+                            <span x-show="!v.base64"
+                                  class="text-slate-300 cursor-not-allowed truncate"
+                                  title="Documento non disponibile"
+                                  x-text="v.filename ? '📎 ' + v.filename : '—'"></span>
+                          </li>
+                        </template>
+                      </ul>
+                    </details>
+                  </template>
                 </div>
                 <div class="flex items-center gap-2 flex-shrink-0">
                   <button type="button" @click="apriModificaExtra(ex.id)"
