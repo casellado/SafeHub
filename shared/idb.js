@@ -158,19 +158,16 @@ const IDB = (() => {
   };
 
   /**
-   * Ri-scansiona SafeHub-CSE-Lavori/ e ricostruisce cantieri_cache e documenti_indice.
+   * Ri-scansiona SafeHub-CSE-Lavori/ e ricostruisce cantieri_cache.
    *
-   * Chiamare quando l'IDB è incoerente, dopo operazioni esterne sulla cartella,
-   * o su richiesta esplicita del PO ("Riscansiona").
-   *
-   * Non tocca verbali_ricevuti_inbox, cache_anagrafica, impostazioni_archivio:
-   * quelli vengono gestiti dai moduli che li usano (M7, M4, M2).
+   * Chiamare al boot e su richiesta esplicita ("Riscansiona").
+   * Non tocca verbali_ricevuti_inbox, cache_anagrafica, impostazioni_archivio,
+   * né documenti_indice (usa rigeneraIndiceDocumenti per quello).
    *
    * @param {FileSystemDirectoryHandle} rootHandle
    */
   const rigeneraIndice = async (rootHandle) => {
     await idbSvuota('cantieri_cache');
-    await idbSvuota('documenti_indice');
 
     for await (const [nome, handle] of rootHandle.entries()) {
       if (handle.kind !== 'directory' || nome.startsWith('_') || nome.startsWith('.')) continue;
@@ -208,5 +205,62 @@ const IDB = (() => {
     }
   };
 
-  return { apri, idbGet, idbPut, idbDelete, idbGetAll, idbGetByIndex, idbSvuota, rigeneraIndice };
+  // Cartelle documento monitorate da rigeneraIndiceDocumenti.
+  // Solo i moduli implementati; le sottocartelle determinano lo stato del record.
+  const _CARTELLE_DOC = [
+    { folder: '02_Verbali-Riunione',         subs: ['Bozze', 'Protocollati'],  tipo: 'verbale-riunione' },
+    { folder: '03_Verifiche-POS',            subs: ['Bozze', 'Protocollati'],  tipo: 'verifica-pos' },
+    { folder: '04_Proposte-Sospensione-CSE', subs: ['Bozze', 'Protocollati'],  tipo: 'proposta-sospensione' },
+    { folder: '05_Disposizioni-RL',          subs: ['Bozze', 'Protocollati'],  tipo: 'disposizione-rl' },
+    { folder: '07_Verifiche-ITP',            subs: ['Bozze', 'Protocollati'],  tipo: 'verifica-itp' },
+  ];
+  const _STATO_DA_SUB = { Bozze: 'BOZZA', Protocollati: 'PROTOCOLLATO' };
+
+  /**
+   * Ri-scansiona SafeHub-CSE-Lavori/ e ricostruisce documenti_indice.
+   *
+   * Complementare a rigeneraIndice(): gestisce la parte documenti.
+   * Opera solo su listing di cartelle (nessuna lettura del contenuto JSON):
+   * veloce anche con molti documenti; data_documento non è disponibile senza lettura.
+   *
+   * Chiamato in background dopo il boot e in primo piano da "Riscansiona cartella".
+   *
+   * @param {FileSystemDirectoryHandle} rootHandle
+   */
+  const rigeneraIndiceDocumenti = async (rootHandle) => {
+    await idbSvuota('documenti_indice');
+
+    for await (const [nome, cantHandle] of rootHandle.entries()) {
+      if (cantHandle.kind !== 'directory' || nome.startsWith('_') || nome.startsWith('.')) continue;
+
+      for (const { folder, subs, tipo } of _CARTELLE_DOC) {
+        let folderDir;
+        try {
+          folderDir = await cantHandle.getDirectoryHandle(folder, { create: false });
+        } catch { continue; }   // cartella non presente in questo cantiere
+
+        for (const sub of subs) {
+          let subDir;
+          try {
+            subDir = await folderDir.getDirectoryHandle(sub, { create: false });
+          } catch { continue; }   // sottocartella non ancora creata
+
+          for await (const [fn, fh] of subDir.entries()) {
+            if (fh.kind !== 'file' || !fn.endsWith('.json')) continue;
+            const path_file = `${nome}/${folder}/${sub}/${fn}`;
+            await idbPut('documenti_indice', {
+              id_documento:   path_file,
+              cantiere_id:    nome,
+              tipo_documento: tipo,
+              stato:          _STATO_DA_SUB[sub] ?? sub,
+              data_documento: null,   // senza leggere il file; data disponibile nel JSON
+              path_file,
+            });
+          }
+        }
+      }
+    }
+  };
+
+  return { apri, idbGet, idbPut, idbDelete, idbGetAll, idbGetByIndex, idbSvuota, rigeneraIndice, rigeneraIndiceDocumenti };
 })();

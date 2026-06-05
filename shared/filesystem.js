@@ -85,6 +85,8 @@ const FILESYSTEM = (() => {
     const writable = await fh.createWritable();
     await writable.write(JSON.stringify(obj, null, 2));
     await writable.close();
+    // Notifica ogni salvataggio — ascoltato da $store.sync per aggiornare il promemoria.
+    document.dispatchEvent(new CustomEvent('safehub-scrittura'));
   };
 
   /**

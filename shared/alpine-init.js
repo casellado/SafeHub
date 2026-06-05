@@ -58,13 +58,31 @@ document.addEventListener('alpine:init', () => {
     },
   });
 
-  // ---- $store.sync — stato sincronizzazione OneDrive ----
+  // ---- $store.sync — stato sincronizzazione e promemoria cartella ----
   Alpine.store('sync', {
     stato: 'sconosciuto',   // 'ok' | 'attesa' | 'problema' | 'sconosciuto'
     etichetta: '',
     setOk()            { this.stato = 'ok';       this.etichetta = 'Sincronizzato'; },
     setAttesa()        { this.stato = 'attesa';   this.etichetta = 'In sync…'; },
     setProblema(msg)   { this.stato = 'problema'; this.etichetta = msg ?? 'Problema sync'; },
+
+    // FIX 3 — Promemoria cartella agganciata
+    nomeCartella:     null,   // impostato in completaAvvio da rootHandle.name
+    ultimoSalvataggio: null,  // aggiornato a ogni scriviJson (evento safehub-scrittura)
+    get ultimoSalvataggioLabel() {
+      if (!this.ultimoSalvataggio) return null;
+      return new Date(this.ultimoSalvataggio).toLocaleString('it-IT', {
+        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+      });
+    },
+
+    // FIX 2 — stato spinner Riscansiona
+    riscansionando: false,
+  });
+
+  // Aggiorna l'orario dell'ultimo salvataggio ogni volta che scriviJson scrive un file.
+  document.addEventListener('safehub-scrittura', () => {
+    Alpine.store('sync').ultimoSalvataggio = new Date().toISOString();
   });
 
   // ---- Avvio ----
@@ -224,6 +242,9 @@ async function completaAvvio(rootHandle) {
   // Necessario perché i moduli non hanno accesso diretto alla variabile locale di avviaApp().
   FILESYSTEM.setHandleAttivo(rootHandle);
 
+  // FIX 3 — promemoria cartella: nome della cartella agganciata
+  Alpine.store('sync').nomeCartella = rootHandle.name;
+
   // Passo 4b: carica impostazioni globali (M2) — devono essere disponibili
   // prima di app.setStato('pronto') affinché M6 e i moduli documento le trovino pronte.
   app.setStato('caricamento', 'Caricamento impostazioni…');
@@ -269,6 +290,11 @@ async function completaAvvio(rootHandle) {
 
   // Passo 7: mostra cruscotto
   app.setStato('pronto');
+
+  // FIX 1 — ricostruzione documenti_indice in background (non blocca l'avvio).
+  // cantieri_cache è già pronto; questo aggiorna solo documenti_indice.
+  IDB.rigeneraIndiceDocumenti(rootHandle)
+    .catch(err => ERRORI.gestisciErrore('boot/documenti-indice', err, { silenziato: true }));
 
   await Alpine.nextTick();
   window.navigaA('cruscotto');
@@ -334,5 +360,27 @@ window.riconnetti = async () => {
     }
   } catch (err) {
     ERRORI.gestisciErrore('onboarding/riconnetti', err);
+  }
+};
+
+/**
+ * FIX 2 — Riscansiona la cartella agganciata e aggiorna cantieri + documenti.
+ * Usare dopo aver copiato file aggiornati nella cartella da un altro PC.
+ */
+window.riscansionaCartella = async () => {
+  const root = FILESYSTEM.getHandleAttivo();
+  if (!root) return;
+  const sync = Alpine.store('sync');
+  if (sync.riscansionando) return;
+  sync.riscansionando = true;
+  try {
+    await IDB.rigeneraIndice(root);
+    await IDB.rigeneraIndiceDocumenti(root);
+    await Alpine.store('cantieri').ricarica();
+    NOTIFICHE.successo('Cartella riscansionata', 'Cantieri e indice documenti aggiornati.');
+  } catch (err) {
+    ERRORI.gestisciErrore('riscansiona/cartella', err);
+  } finally {
+    sync.riscansionando = false;
   }
 };
