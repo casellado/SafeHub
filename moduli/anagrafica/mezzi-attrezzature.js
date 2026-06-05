@@ -40,6 +40,11 @@ function ListaMezziAttrezzature() {
 
     _cantiereId: null,
 
+    // ── Documenti extra mezzo (raccoglitore libero) ────────────────────────
+    mostraFormExtraMz:   false,
+    idExtraInModificaMz: null,
+    formExtraMz: { titolo: '', scadenza: '', filename: null, base64: null },
+
     // ── Computed mezzi ────────────────────────────────────────────────────
 
     get mezziFiltrati() {
@@ -130,6 +135,7 @@ function ListaMezziAttrezzature() {
       this.formMezzo = JSON.parse(JSON.stringify(m));
       this.formMezzo.verifichePeriodiche ??= [];
       this.formMezzo.libretto            ??= {};
+      this.formMezzo.documenti_extra     ??= [];
       this.nuovoMezzo = false; this.modMezzo = false; this.drawerMezzo = true;
     },
 
@@ -182,6 +188,79 @@ function ListaMezziAttrezzature() {
       const f = ev.target.files?.[0]; if (!f) return;
       this.formMezzo.libretto = { filename: f.name, base64: await _leggiFileBase64MA(f) };
       this.formMezzo = { ...this.formMezzo }; this.modMezzo = true;
+    },
+
+    // ── Documenti extra mezzo — metodi raccoglitore ───────────────────────
+
+    get extraAttiviMz() {
+      return (this.formMezzo.documenti_extra ?? []).filter(e => !e._cestino);
+    },
+
+    apriFormExtraMz() {
+      this.idExtraInModificaMz = null;
+      this.formExtraMz = { titolo: '', scadenza: '', filename: null, base64: null };
+      this.mostraFormExtraMz = true;
+    },
+
+    apriModificaExtraMz(id) {
+      const ex = (this.formMezzo.documenti_extra ?? []).find(e => e.id === id && !e._cestino);
+      if (!ex) return;
+      this.idExtraInModificaMz = id;
+      this.formExtraMz = { titolo: ex.titolo ?? '', scadenza: ex.scadenza ?? '', filename: ex.filename, base64: ex.base64 };
+      this.mostraFormExtraMz = true;
+    },
+
+    chiudiFormExtraMz() {
+      this.mostraFormExtraMz = false;
+      this.idExtraInModificaMz = null;
+      this.formExtraMz = { titolo: '', scadenza: '', filename: null, base64: null };
+    },
+
+    async onExtraFileMz(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      this.formExtraMz = { ...this.formExtraMz, filename: file.name, base64: await _leggiFileBase64MA(file) };
+    },
+
+    salvaExtraMz() {
+      const titolo = (this.formExtraMz.titolo ?? '').trim();
+      if (!titolo) return;
+      if (!this.formMezzo.documenti_extra) this.formMezzo.documenti_extra = [];
+
+      // Soft-delete del record precedente in caso di modifica
+      if (this.idExtraInModificaMz) {
+        const idx = this.formMezzo.documenti_extra.findIndex(e => e.id === this.idExtraInModificaMz);
+        if (idx >= 0) {
+          this.formMezzo.documenti_extra[idx] = {
+            ...this.formMezzo.documenti_extra[idx],
+            _cestino: true,
+            _eliminato_il: new Date().toISOString(),
+          };
+        }
+      }
+
+      this.formMezzo.documenti_extra.push({
+        id:       UTILS.generaId('ext'),
+        titolo,
+        scadenza: this.formExtraMz.scadenza || null,
+        filename: this.formExtraMz.filename ?? null,
+        base64:   this.formExtraMz.base64   ?? null,
+      });
+      this.formMezzo = { ...this.formMezzo };
+      this.modMezzo = true;
+      this.chiudiFormExtraMz();
+    },
+
+    cestinaExtraMz(id) {
+      const idx = (this.formMezzo.documenti_extra ?? []).findIndex(e => e.id === id && !e._cestino);
+      if (idx < 0) return;
+      this.formMezzo.documenti_extra[idx] = {
+        ...this.formMezzo.documenti_extra[idx],
+        _cestino: true,
+        _eliminato_il: new Date().toISOString(),
+      };
+      this.formMezzo = { ...this.formMezzo };
+      this.modMezzo = true;
     },
 
     // ── Drawer attrezzatura ───────────────────────────────────────────────
@@ -648,6 +727,121 @@ const _TEMPLATE_MA = `
         <summary class="px-4 py-3 bg-slate-50 cursor-not-allowed text-sm font-medium text-slate-500 list-none flex items-center justify-between">
           Collegamento nolo <span class="text-xs font-normal">(disponibile in M4 F4)</span>
         </summary>
+      </details>
+
+      <!-- 6. Altri documenti (raccoglitore libero) -->
+      <details class="border border-slate-200 rounded-xl overflow-hidden">
+        <summary class="px-4 py-3 bg-slate-50 cursor-pointer text-sm font-medium text-slate-700 hover:bg-slate-100 list-none flex items-center justify-between">
+          <span>
+            Altri documenti
+            <span x-show="extraAttiviMz.length > 0"
+                  class="ml-1 text-xs font-normal text-slate-400"
+                  x-text="'(' + extraAttiviMz.length + ')'"></span>
+          </span>
+          <span class="text-slate-400 text-xs" aria-hidden="true">▾</span>
+        </summary>
+        <div class="p-4 space-y-3">
+
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-slate-400">Documenti aggiuntivi non previsti dallo schema (titolo libero, scadenza opzionale).</span>
+            <button type="button" @click="apriFormExtraMz()"
+                    x-show="!mostraFormExtraMz"
+                    class="ml-3 flex-shrink-0 text-xs text-blue-600 hover:text-blue-800 border border-blue-300
+                           px-2 py-1 rounded hover:bg-blue-50 transition-colors
+                           focus:outline-none focus:ring-2 focus:ring-blue-500">
+              + Allega altro documento
+            </button>
+          </div>
+
+          <!-- Form inline add/modifica -->
+          <div x-show="mostraFormExtraMz"
+               class="mb-3 border border-blue-200 rounded-lg p-3 bg-blue-50 space-y-2">
+            <div class="grid gap-2 sm:grid-cols-2">
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Titolo <span class="text-red-500">*</span></label>
+                <input type="text" x-model="formExtraMz.titolo"
+                       placeholder="es. Libretto revisione, Dichiarazione collaudo…"
+                       class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs
+                              focus:outline-none focus:ring-2 focus:ring-blue-500">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-600 mb-1">Scadenza (opzionale)</label>
+                <input type="date" x-model="formExtraMz.scadenza"
+                       class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs
+                              focus:outline-none focus:ring-2 focus:ring-blue-500">
+              </div>
+            </div>
+            <label class="flex items-center gap-2 cursor-pointer text-xs text-blue-600 hover:text-blue-800">
+              <input type="file" accept=".pdf,.png,.jpg,.jpeg" class="sr-only"
+                     @change="onExtraFileMz($event)">
+              <span x-text="formExtraMz.filename ? '📎 ' + formExtraMz.filename : '📎 Seleziona file (opzionale)'"></span>
+            </label>
+            <div class="flex items-center gap-2 pt-1">
+              <button type="button" @click="salvaExtraMz()"
+                      :disabled="!(formExtraMz.titolo ?? '').trim()"
+                      class="text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white
+                             disabled:opacity-40 px-3 py-1.5 rounded-lg transition-colors
+                             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1">
+                <span x-text="idExtraInModificaMz ? 'Aggiorna' : 'Conferma'"></span>
+              </button>
+              <button type="button" @click="chiudiFormExtraMz()"
+                      class="text-xs text-slate-500 hover:text-slate-700
+                             focus:outline-none focus:ring-1 focus:ring-slate-400 rounded px-2">
+                Annulla
+              </button>
+            </div>
+          </div>
+
+          <!-- Lista documenti extra presenti -->
+          <ul class="space-y-1.5" x-show="extraAttiviMz.length > 0">
+            <template x-for="ex in extraAttiviMz" :key="ex.id">
+              <li class="flex items-start justify-between gap-3 bg-white border border-slate-200
+                          rounded-lg px-3 py-2 text-xs">
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <span class="font-medium text-slate-700" x-text="ex.titolo"></span>
+                    <span x-show="ex.scadenza" class="font-normal"
+                          :class="ex.scadenza && UTILS.giorniAllaScadenza(ex.scadenza) < 0 ? 'text-red-600' : 'text-slate-400'"
+                          x-text="'· scad. ' + UTILS.formatData(ex.scadenza)"></span>
+                  </div>
+                  <div x-show="ex.filename" class="mt-1 flex items-center gap-1.5 flex-wrap">
+                    <button x-show="ex.base64" type="button"
+                            @click="ALLEGATI.apriAllegato(ex.base64, ex.filename)"
+                            class="text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5
+                                   rounded hover:bg-blue-100 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                            :title="'Apri ' + ex.filename">
+                      📎 <span x-text="ex.filename"></span>
+                    </button>
+                    <span x-show="!ex.base64"
+                          class="text-slate-400 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded cursor-not-allowed"
+                          title="Documento non disponibile in questa copia"
+                          x-text="'📎 ' + ex.filename"></span>
+                    <button x-show="ex.base64" type="button"
+                            @click="ALLEGATI.scaricaAllegato(ex.base64, ex.filename)"
+                            class="text-slate-500 hover:text-blue-600 transition-colors
+                                   focus:outline-none focus:ring-1 focus:ring-slate-400 rounded px-0.5"
+                            :aria-label="'Scarica ' + ex.titolo" title="Scarica">⬇</button>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                  <button type="button" @click="apriModificaExtraMz(ex.id)"
+                          class="text-slate-500 hover:text-blue-600 transition-colors
+                                 focus:outline-none focus:ring-1 focus:ring-slate-400 rounded px-1"
+                          title="Modifica" aria-label="Modifica documento extra">✏</button>
+                  <button type="button" @click="cestinaExtraMz(ex.id)"
+                          class="text-red-400 hover:text-red-600
+                                 focus:outline-none focus:ring-1 focus:ring-red-400 rounded">
+                    Rimuovi
+                  </button>
+                </div>
+              </li>
+            </template>
+          </ul>
+
+          <p x-show="extraAttiviMz.length === 0 && !mostraFormExtraMz"
+             class="text-xs text-slate-400 text-center py-2">Nessun documento aggiuntivo</p>
+
+        </div>
       </details>
 
     </div>
