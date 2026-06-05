@@ -943,6 +943,17 @@ const ANAGRAFICA_SERVICE = (() => {
       }
     }
 
+    // Documenti extra liberi (solo se con scadenza valorizzata — soglia.default, non critica)
+    for (const d of (att.documenti_extra ?? [])) {
+      if (d._cestino || !d.scadenza) continue;
+      const gg     = UTILS.giorniAllaScadenza(d.scadenza);
+      const soglia = soglie.default;
+      const stato  = gg < 0 ? 'scaduto' : gg < soglia.giorni ? 'in_scadenza' : 'valido';
+      if (stato !== 'valido') {
+        risultati.push({ tipo: 'extra_' + d.id, label: d.titolo, scadenza: d.scadenza, giorni: gg, stato, criticita: 'normale' });
+      }
+    }
+
     return risultati.sort((a, b) => (a.giorni ?? 999) - (b.giorni ?? 999));
   };
 
@@ -1015,6 +1026,7 @@ const ANAGRAFICA_SERVICE = (() => {
       libretto: { filename: null, base64: null },
       verifiche: [],
       documentiSpecifici: [],
+      documenti_extra: [],
     };
     if (nomeCollezione === 'lavoratori') return {
       nome: '', cognome: '', codiceFiscale: '', mansione: '',
