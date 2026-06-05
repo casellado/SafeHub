@@ -1010,6 +1010,7 @@ const ANAGRAFICA_SERVICE = (() => {
       nome: '', cognome: '', qualifica: '',
       tipoEnte: '', ente: '',
       email: '', telefono: '',
+      documenti_extra: [],
     };
     if (nomeCollezione === 'noli') return {
       tipoNolo: '',
