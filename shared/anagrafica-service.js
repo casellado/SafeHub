@@ -562,7 +562,9 @@ const ANAGRAFICA_SERVICE = (() => {
   // ================================================================
   const calcolaScadenzeImpresa = (impresa) => {
     const soglie = IMPOSTAZIONI_SERVICE.soglie();
-    return (impresa.documenti ?? [])
+
+    // Documenti a tipo fisso (schema v2.0)
+    const fixed = (impresa.documenti ?? [])
       .filter(d => !d._cestino && d.scadenza)
       .map(d => {
         const gg     = UTILS.giorniAllaScadenza(d.scadenza);
@@ -570,8 +572,20 @@ const ANAGRAFICA_SERVICE = (() => {
         const stato  = gg === null ? 'senza_data' : gg < 0 ? 'scaduto' : gg < soglia.giorni ? 'in_scadenza' : 'valido';
         return { tipo: d.tipo, label: LABEL_DOC[d.tipo] ?? d.tipo, scadenza: d.scadenza, giorni: gg, stato, criticita: soglia.criticita };
       })
-      .filter(s => s.stato !== 'valido')
-      .sort((a, b) => (a.giorni ?? 999) - (b.giorni ?? 999));
+      .filter(s => s.stato !== 'valido');
+
+    // Documenti extra liberi (solo se hanno una scadenza valorizzata)
+    const extra = (impresa.documenti_extra ?? [])
+      .filter(d => !d._cestino && d.scadenza)
+      .map(d => {
+        const gg    = UTILS.giorniAllaScadenza(d.scadenza);
+        const soglia = soglie.default;
+        const stato  = gg === null ? 'senza_data' : gg < 0 ? 'scaduto' : gg < soglia.giorni ? 'in_scadenza' : 'valido';
+        return { tipo: 'extra_' + d.id, label: d.titolo, scadenza: d.scadenza, giorni: gg, stato, criticita: soglia.criticita };
+      })
+      .filter(s => s.stato !== 'valido');
+
+    return [...fixed, ...extra].sort((a, b) => (a.giorni ?? 999) - (b.giorni ?? 999));
   };
 
   // ================================================================
@@ -939,6 +953,7 @@ const ANAGRAFICA_SERVICE = (() => {
       figureSicurezza: { rspp: null, medicoCompetente: null, rls: null, preposti: [], direttoreTecnico: null, direttoreCantiere: null },
       ccnlApplicato: null, organicoMedioAnnuo: null,
       documenti: [],
+      documenti_extra: [],
     };
     if (nomeCollezione === 'persone_committente') return {
       nome: '', cognome: '', qualifica: '', ruolo: '',
