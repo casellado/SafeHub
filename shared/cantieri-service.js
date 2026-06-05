@@ -217,5 +217,26 @@ const CANTIERI_SERVICE = (() => {
     persone_terzi:      [],
   });
 
-  return { crea, leggiAnagrafica, aggiornaDatiLotto, inizializzaCantiereFuoriApp };
+  /**
+   * Rimuove tutti i record IDB relativi a un cantiere eliminato definitivamente dal cestino.
+   * NON tocca il filesystem: la cartella su disco va rimossa manualmente dal PO.
+   *
+   * Sequenza: documenti_indice → verbali_ricevuti_inbox → cantieri_cache → cache_anagrafica.
+   *
+   * @param {string} cantiere_id
+   */
+  const svuotaCantiereDaIdb = async (cantiere_id) => {
+    // Store con indice secondario su cantiere_id
+    const docs = await IDB.idbGetByIndex('documenti_indice', 'cantiere_id', cantiere_id);
+    for (const doc of docs) await IDB.idbDelete('documenti_indice', doc.id_documento);
+
+    const verbali = await IDB.idbGetByIndex('verbali_ricevuti_inbox', 'cantiere_id', cantiere_id);
+    for (const verb of verbali) await IDB.idbDelete('verbali_ricevuti_inbox', verb.id);
+
+    // Store con chiave primaria diretta
+    await IDB.idbDelete('cantieri_cache',  cantiere_id);
+    await IDB.idbDelete('cache_anagrafica', cantiere_id);
+  };
+
+  return { crea, leggiAnagrafica, aggiornaDatiLotto, inizializzaCantiereFuoriApp, svuotaCantiereDaIdb };
 })();
