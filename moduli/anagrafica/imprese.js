@@ -777,11 +777,34 @@ const _TEMPLATE_IMPRESE = `
                             class="text-xs bg-slate-100 text-slate-400 px-1.5 rounded">non pertinente</span>
                     </div>
 
-                    <!-- Documento presente: mostra nome + scadenza + cestina -->
+                    <!-- Documento presente: mostra nome + apri/scarica + scadenza + cestina -->
                     <template x-if="getDocumento(docDef.tipo)">
                       <div class="mt-1.5 flex items-center gap-3 flex-wrap">
-                        <span class="text-xs text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded"
+
+                        <!-- filename: cliccabile per aprire se base64 presente -->
+                        <button x-show="getDocumento(docDef.tipo)?.base64"
+                                type="button"
+                                @click="ALLEGATI.apriAllegato(getDocumento(docDef.tipo).base64, getDocumento(docDef.tipo).filename)"
+                                class="text-xs text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded
+                                       hover:bg-blue-100 cursor-pointer
+                                       focus:outline-none focus:ring-1 focus:ring-blue-400"
+                                :title="'Apri ' + getDocumento(docDef.tipo)?.filename">
+                          📎 <span x-text="getDocumento(docDef.tipo)?.filename"></span>
+                        </button>
+                        <!-- filename disabilitato se base64 assente (variante leggera) -->
+                        <span x-show="!getDocumento(docDef.tipo)?.base64"
+                              class="text-xs text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded cursor-not-allowed"
+                              title="Documento non disponibile in questa copia"
                               x-text="'📎 ' + getDocumento(docDef.tipo)?.filename"></span>
+                        <!-- scarica -->
+                        <button x-show="getDocumento(docDef.tipo)?.base64"
+                                type="button"
+                                @click="ALLEGATI.scaricaAllegato(getDocumento(docDef.tipo).base64, getDocumento(docDef.tipo).filename)"
+                                class="text-xs text-slate-500 hover:text-blue-600 transition-colors
+                                       focus:outline-none focus:ring-1 focus:ring-slate-400 rounded px-1"
+                                title="Scarica"
+                                :aria-label="'Scarica ' + docDef.label">⬇</button>
+
                         <div class="flex items-center gap-1">
                           <label :for="'scad-' + docDef.tipo" class="text-xs text-slate-400">Scadenza:</label>
                           <input :id="'scad-' + docDef.tipo" type="date"

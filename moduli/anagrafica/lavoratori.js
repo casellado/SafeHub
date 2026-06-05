@@ -604,12 +604,31 @@ const _TEMPLATE_LAVORATORI = `
                           focus:outline-none focus:ring-2 focus:ring-blue-500"
                    :class="UTILS.giorniAllaScadenza(formDati.visitaMedica?.scadenza) < 0 ? 'border-red-400 bg-red-50' : ''">
           </div>
-          <div class="sm:col-span-2">
-            <label class="flex items-center gap-2 text-xs font-medium text-slate-600 mb-1 cursor-pointer">
+          <div class="sm:col-span-2 flex items-center gap-2 flex-wrap">
+            <!-- apri (se base64 presente) -->
+            <button x-show="formDati.visitaMedica?.base64" type="button"
+                    @click="ALLEGATI.apriAllegato(formDati.visitaMedica.base64, formDati.visitaMedica.filename)"
+                    class="text-xs text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded
+                           hover:bg-blue-100 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    :title="'Apri ' + formDati.visitaMedica?.filename">
+              📎 <span x-text="formDati.visitaMedica?.filename"></span>
+            </button>
+            <!-- filename grigio se base64 assente (variante leggera) -->
+            <span x-show="formDati.visitaMedica?.filename && !formDati.visitaMedica?.base64"
+                  class="text-xs text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded cursor-not-allowed"
+                  title="Documento non disponibile in questa copia"
+                  x-text="'📎 ' + formDati.visitaMedica?.filename"></span>
+            <!-- scarica -->
+            <button x-show="formDati.visitaMedica?.base64" type="button"
+                    @click="ALLEGATI.scaricaAllegato(formDati.visitaMedica.base64, formDati.visitaMedica.filename)"
+                    class="text-xs text-slate-500 hover:text-blue-600 transition-colors
+                           focus:outline-none focus:ring-1 focus:ring-slate-400 rounded px-1"
+                    title="Scarica" aria-label="Scarica visita medica">⬇</button>
+            <!-- upload -->
+            <label class="cursor-pointer text-xs text-blue-600 hover:text-blue-800">
               <input type="file" accept=".pdf,.png,.jpg" class="sr-only"
                      @change="onDocumentoFile('visitaMedica', $event)">
-              <span x-text="formDati.visitaMedica?.filename ? '📎 ' + formDati.visitaMedica.filename : '📎 Allega documento'">
-              </span>
+              <span x-text="formDati.visitaMedica?.filename ? '↑ Sostituisci' : '📎 Allega documento'"></span>
             </label>
           </div>
         </div>
@@ -645,12 +664,31 @@ const _TEMPLATE_LAVORATORI = `
                    class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm
                           focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
-          <div class="sm:col-span-2">
-            <label class="flex items-center gap-2 text-xs font-medium text-slate-600 mb-1 cursor-pointer">
+          <div class="sm:col-span-2 flex items-center gap-2 flex-wrap">
+            <!-- apri (se base64 presente) -->
+            <button x-show="formDati.attestatoFormazione?.base64" type="button"
+                    @click="ALLEGATI.apriAllegato(formDati.attestatoFormazione.base64, formDati.attestatoFormazione.filename)"
+                    class="text-xs text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded
+                           hover:bg-blue-100 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    :title="'Apri ' + formDati.attestatoFormazione?.filename">
+              📎 <span x-text="formDati.attestatoFormazione?.filename"></span>
+            </button>
+            <!-- filename grigio se base64 assente (variante leggera) -->
+            <span x-show="formDati.attestatoFormazione?.filename && !formDati.attestatoFormazione?.base64"
+                  class="text-xs text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded cursor-not-allowed"
+                  title="Documento non disponibile in questa copia"
+                  x-text="'📎 ' + formDati.attestatoFormazione?.filename"></span>
+            <!-- scarica -->
+            <button x-show="formDati.attestatoFormazione?.base64" type="button"
+                    @click="ALLEGATI.scaricaAllegato(formDati.attestatoFormazione.base64, formDati.attestatoFormazione.filename)"
+                    class="text-xs text-slate-500 hover:text-blue-600 transition-colors
+                           focus:outline-none focus:ring-1 focus:ring-slate-400 rounded px-1"
+                    title="Scarica" aria-label="Scarica attestato formazione">⬇</button>
+            <!-- upload -->
+            <label class="cursor-pointer text-xs text-blue-600 hover:text-blue-800">
               <input type="file" accept=".pdf,.png,.jpg" class="sr-only"
                      @change="onDocumentoFile('attestatoFormazione', $event)">
-              <span x-text="formDati.attestatoFormazione?.filename ? '📎 ' + formDati.attestatoFormazione.filename : '📎 Allega documento'">
-              </span>
+              <span x-text="formDati.attestatoFormazione?.filename ? '↑ Sostituisci' : '📎 Allega documento'"></span>
             </label>
           </div>
         </div>
@@ -726,11 +764,31 @@ const _TEMPLATE_LAVORATORI = `
                                 focus:outline-none focus:ring-2 focus:ring-blue-500"
                          :class="ab.scadenza && UTILS.giorniAllaScadenza(ab.scadenza) < 0 ? 'border-red-400 bg-red-50' : ''">
                 </div>
-                <div class="flex items-end">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <!-- apri (se base64 presente) -->
+                  <button x-show="ab.base64" type="button"
+                          @click="ALLEGATI.apriAllegato(ab.base64, ab.filename)"
+                          class="text-xs text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded
+                                 hover:bg-blue-100 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                          :title="'Apri ' + ab.filename">
+                    📎 <span x-text="ab.filename"></span>
+                  </button>
+                  <!-- filename grigio se base64 assente (variante leggera) -->
+                  <span x-show="ab.filename && !ab.base64"
+                        class="text-xs text-slate-400 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded cursor-not-allowed"
+                        title="Documento non disponibile in questa copia"
+                        x-text="'📎 ' + ab.filename"></span>
+                  <!-- scarica -->
+                  <button x-show="ab.base64" type="button"
+                          @click="ALLEGATI.scaricaAllegato(ab.base64, ab.filename)"
+                          class="text-xs text-slate-500 hover:text-blue-600 transition-colors
+                                 focus:outline-none focus:ring-1 focus:ring-slate-400 rounded px-1"
+                          title="Scarica" :aria-label="'Scarica ' + (ab.filename ?? 'abilitazione')">⬇</button>
+                  <!-- upload -->
                   <label class="cursor-pointer text-xs text-blue-600 hover:text-blue-800">
                     <input type="file" accept=".pdf,.png,.jpg" class="sr-only"
                            @change="onAbilitazioneFile(idx, $event)">
-                    <span x-text="ab.filename ? '📎 ' + ab.filename : '📎 Allega'"></span>
+                    <span x-text="ab.filename ? '↑ Sostituisci' : '📎 Allega'"></span>
                   </label>
                 </div>
               </div>
