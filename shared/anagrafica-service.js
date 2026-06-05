@@ -629,6 +629,12 @@ const ANAGRAFICA_SERVICE = (() => {
       _aggiungi('abilitazione_' + ab.tipo, label, ab.scadenza, sogliaTipo, criticita);
     }
 
+    // Documenti extra liberi (solo se hanno una scadenza valorizzata)
+    for (const d of (lav.documenti_extra ?? [])) {
+      if (d._cestino || !d.scadenza) continue;
+      _aggiungi('extra_' + d.id, d.titolo, d.scadenza, 'default', 'normale');
+    }
+
     return risultati.sort((a, b) => (a.giorni ?? 999) - (b.giorni ?? 999));
   };
 
@@ -1009,6 +1015,7 @@ const ANAGRAFICA_SERVICE = (() => {
       tesseraRiconoscimento: { presente: false, filename: null, base64: null },
       badgeCantiere:         { codice: null, presente: false },
       ruoliSpeciali: [],
+      documenti_extra: [],
     };
     return {};
   };
