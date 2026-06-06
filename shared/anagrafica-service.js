@@ -1054,6 +1054,7 @@ const ANAGRAFICA_SERVICE = (() => {
       impresa_id: null,
       attestatoFormazione: { numero: null, scadenza: null, filename: null, base64: null },
       visitaMedica:        { ente: null, data: null, scadenza: null, filename: null, base64: null },
+      visitaMedica_storico: [],
       abilitazioni: [],
       foto: [],   // gestito da M24; inizializzato vuoto, variante leggera SafeCant lo ignora
       tesseraRiconoscimento: { presente: false, filename: null, base64: null },
