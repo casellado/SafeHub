@@ -6,6 +6,31 @@
  * Pezzo d (scadenze/semaforo): incluso. Pezzo c (aggancio nc_draft): non qui.
  */
 
+// Promemori normativi — UI only, NON entrano nel documento (le NC non generano DOCX).
+const NOTE_NORMATIVE_NC = [
+  {
+    titolo: 'Natura e fondamento (art. 92 c.1 lett. e)',
+    testo:  'La non conformità nasce da un\'inosservanza rilevata in cantiere (disposizioni PSC, ' +
+            'artt. 94-95-96-97). Il CSE la contesta per iscritto all\'impresa interessata e, in caso ' +
+            'di mancato adeguamento, segnala al Committente/RL proponendo sospensione, allontanamento ' +
+            'o risoluzione del contratto.',
+  },
+  {
+    titolo: 'Tempi di risoluzione',
+    testo:  'La legge non fissa tempi standard di risoluzione: è il CSE a valutare la tempestività ' +
+            'in base alla gravità. La scadenza che imposti su ogni NC è un tuo promemoria operativo, ' +
+            'non un termine di legge. In caso di pericolo grave e imminente, il CSE sospende ' +
+            'direttamente le lavorazioni.',
+  },
+  {
+    titolo: 'Tracciabilità',
+    testo:  'La NC qui registrata è uno strumento di gestione e monitoraggio ' +
+            '(aperta → in risoluzione → chiusa). La comunicazione ufficiale all\'impresa avviene ' +
+            'tramite il verbale di sopralluogo; l\'eventuale formalizzazione successiva ' +
+            '(es. ordine di servizio) resta documento a sé.',
+  },
+];
+
 // ── Componente Alpine ─────────────────────────────────────────────────────────
 
 function NonConformita() {
@@ -23,9 +48,11 @@ function NonConformita() {
     modificatoDopoCaricamento: false,
 
     _cantiereId: null,
+    noteAperte:  false,
 
     // ── Computed ─────────────────────────────────────────────────────────────
 
+    get noteNC()       { return NOTE_NORMATIVE_NC; },
     get listaFiltrata() {
       return this.lista.filter(nc => nc.stato_risoluzione === this.filtroStato);
     },
@@ -221,19 +248,36 @@ const _TEMPLATE_NC = `
      class="max-w-4xl">
 
   <!-- === HEADER === -->
-  <div class="flex items-center justify-between mb-5">
+  <div class="flex items-center justify-between mb-4">
     <div>
       <h1 class="text-xl font-semibold text-slate-800">⚠ Non Conformità</h1>
       <p class="text-xs text-slate-400 mt-0.5"
          x-text="lista.length + ' NC · ' + nAperte + ' aperte · ' + nInRisoluzione + ' in risoluzione · ' + nChiuse + ' chiuse'">
       </p>
     </div>
-    <button @click="nuovaNC()" x-show="$store.cantiere.id"
-            class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium
-                   px-4 py-2 rounded-lg transition-colors
-                   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-      + Nuova NC
-    </button>
+    <div class="flex items-center gap-2">
+      <button @click="noteAperte = !noteAperte"
+              :aria-expanded="String(noteAperte)"
+              class="text-xs text-sky-700 bg-sky-50 border border-sky-200
+                     px-2.5 py-1 rounded-full hover:bg-sky-100 transition-colors
+                     focus:outline-none focus:ring-2 focus:ring-sky-400">
+        &#x2139; Note normative
+      </button>
+      <button @click="nuovaNC()" x-show="$store.cantiere.id"
+              class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium
+                     px-4 py-2 rounded-lg transition-colors
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+        + Nuova NC
+      </button>
+    </div>
+  </div>
+
+  <!-- NOTE NORMATIVE -->
+  <div x-show="noteAperte" x-transition class="nota-normativa-panel mb-4" role="note">
+    <p class="text-xs text-sky-500 mb-2 italic">Promemoria per il CSE — non compare nel documento.</p>
+    <template x-for="nota in noteNC" :key="nota.titolo">
+      <div><h4 x-text="nota.titolo"></h4><p x-text="nota.testo"></p></div>
+    </template>
   </div>
 
   <!-- Nessun cantiere -->
