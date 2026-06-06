@@ -134,8 +134,9 @@ function ListaLavoratori() {
       }
       this.formDati.visitaMedica           ??= {};
       this.formDati.visitaMedica_storico   ??= [];
-      this.formDati.attestatoFormazione    ??= {};
-      this.formDati.tesseraRiconoscimento  ??= { presente: false };
+      this.formDati.attestatoFormazione         ??= {};
+      this.formDati.attestatoFormazione_storico ??= [];
+      this.formDati.tesseraRiconoscimento       ??= { presente: false };
       this.formDati.badgeCantiere          ??= { codice: null, presente: false };
       this.formDati.ruoliSpeciali          ??= [];
       this.formDati.documenti_extra        ??= [];
@@ -284,7 +285,32 @@ function ListaLavoratori() {
         .sort((a, b) => (b._eliminato_il ?? '').localeCompare(a._eliminato_il ?? ''));
     },
 
-    // Upload generico (attestato formazione + tessera riconoscimento)
+    // Sostituzione attestato formazione con conservazione storico (identico a visitaMedica)
+    async onAttestFormFile(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const base64 = await _leggiFileBase64Lav(file);
+      const corrente = this.formDati.attestatoFormazione;
+      if (corrente?.filename || corrente?.base64) {
+        if (!this.formDati.attestatoFormazione_storico) this.formDati.attestatoFormazione_storico = [];
+        this.formDati.attestatoFormazione_storico.push({
+          ...corrente,
+          _cestino: true,
+          _eliminato_il: new Date().toISOString(),
+        });
+      }
+      this.formDati.attestatoFormazione = { ...(corrente ?? {}), filename: file.name, base64 };
+      this.formDati = { ...this.formDati };
+      this.modificatoDopoCaricamento = true;
+    },
+
+    get storicoAttestoFormazione() {
+      return (this.formDati.attestatoFormazione_storico ?? [])
+        .filter(v => v._cestino)
+        .sort((a, b) => (b._eliminato_il ?? '').localeCompare(a._eliminato_il ?? ''));
+    },
+
+    // Upload generico (tessera riconoscimento)
     async onDocumentoFile(campo, event) {
       const file = event.target.files?.[0];
       if (!file) return;
@@ -869,10 +895,38 @@ const _TEMPLATE_LAVORATORI = `
             <!-- upload -->
             <label class="cursor-pointer text-xs text-blue-600 hover:text-blue-800">
               <input type="file" accept=".pdf,.png,.jpg" class="sr-only"
-                     @change="onDocumentoFile('attestatoFormazione', $event)">
+                     @change="onAttestFormFile($event)">
               <span x-text="formDati.attestatoFormazione?.filename ? '↑ Sostituisci' : '📎 Allega documento'"></span>
             </label>
           </div>
+          <!-- Storico: versioni precedenti dell'attestato formazione (sola lettura) -->
+          <template x-if="storicoAttestoFormazione.length > 0">
+            <div class="sm:col-span-2">
+              <details class="text-xs">
+                <summary class="cursor-pointer text-slate-400 hover:text-slate-600 select-none">
+                  Storico (<span x-text="storicoAttestoFormazione.length"></span> vers. prec.)
+                </summary>
+                <ul class="mt-1 ml-1 border-l border-slate-100 pl-2 space-y-0.5">
+                  <template x-for="v in storicoAttestoFormazione" :key="v._eliminato_il ?? v.filename ?? ''">
+                    <li class="flex items-center gap-2 text-slate-400">
+                      <span class="flex-shrink-0" x-text="UTILS.formatData(v._eliminato_il)"></span>
+                      <button x-show="v.base64" type="button"
+                              @click.stop="ALLEGATI.apriAllegato(v.base64, v.filename)"
+                              class="text-blue-500 hover:text-blue-700 truncate text-left
+                                     focus:outline-none focus:ring-1 focus:ring-blue-400 rounded"
+                              :title="'Apri ' + v.filename">
+                        📎 <span x-text="v.filename"></span>
+                      </button>
+                      <span x-show="!v.base64"
+                            class="text-slate-300 cursor-not-allowed truncate"
+                            title="Documento non disponibile"
+                            x-text="v.filename ? '📎 ' + v.filename : '—'"></span>
+                    </li>
+                  </template>
+                </ul>
+              </details>
+            </div>
+          </template>
         </div>
       </details>
 
