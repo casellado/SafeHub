@@ -331,6 +331,10 @@ function DiarioCse() {
     modificatoDopoCaricamento: false,
     nuovoUrl:                  '',
 
+    // Dettaglio sola lettura (voci firmate e AUTO)
+    dettaglioAperto: false,
+    dettaglioVoce:   null,
+
     // Firma
     firmaModal:      false,   // mostra il pannello firma
     _firmaVoceId:    null,    // null = firma per il drawer; uuid = firma per voce esistente dalla lista
@@ -439,6 +443,19 @@ function DiarioCse() {
       this.drawerAperto = false;
       this.formDati     = {};
       this.nuovoUrl     = '';
+    },
+
+    // ── Dettaglio sola lettura ────────────────────────────────────────────────
+
+    /** Apre il pannello dettaglio in sola lettura (voci firmate e AUTO). */
+    apriDettaglio(voce) {
+      this.dettaglioVoce   = voce;
+      this.dettaglioAperto = true;
+    },
+
+    chiudiDettaglio() {
+      this.dettaglioAperto = false;
+      this.dettaglioVoce   = null;
     },
 
     _validaForm() {
@@ -842,6 +859,14 @@ const _TEMPLATE_DIARIO = `
                                  focus:outline-none focus:ring-2 focus:ring-slate-400"
                           :aria-label="'Modifica: ' + voce.titolo">✏ Modifica</button>
                 </template>
+                <!-- Apri in sola lettura (firmate e AUTO) -->
+                <template x-if="voce.stato_voce === 'firmata' || voce.origine === 'AUTO'">
+                  <button @click="apriDettaglio(voce)"
+                          class="text-xs text-slate-600 hover:text-slate-900 px-3 py-1
+                                 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors
+                                 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                          :aria-label="'Apri dettaglio: ' + voce.titolo">👁 Apri</button>
+                </template>
                 <!-- Cestina -->
                 <button @click="cestinaVoce(voce)"
                         class="text-xs text-red-400 hover:text-red-700 px-2 py-1
@@ -1104,6 +1129,138 @@ const _TEMPLATE_DIARIO = `
     </div>
 
   </div><!-- /drawer -->
+
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       DRAWER DETTAGLIO — sola lettura (voci firmate e AUTO).
+       Stessa struttura del drawer di modifica; nessun campo editabile.
+       ═══════════════════════════════════════════════════════════════ -->
+  <div x-show="dettaglioAperto" x-cloak
+       class="drawer-backdrop" @click="chiudiDettaglio()" aria-hidden="true"></div>
+
+  <div x-show="dettaglioAperto" x-cloak
+       @keydown.escape.window="chiudiDettaglio()"
+       class="drawer" role="dialog" aria-modal="true" aria-label="Dettaglio annotazione">
+
+    <!-- header fisso -->
+    <div class="drawer-header flex items-center justify-between px-5 py-4 border-b border-slate-200 bg-white">
+      <div>
+        <h2 class="text-base font-semibold text-slate-800">Dettaglio annotazione</h2>
+        <span x-show="dettaglioVoce?.stato_voce === 'firmata'"
+              class="text-xs text-green-600">✓ Firmata — sola lettura</span>
+        <span x-show="dettaglioVoce?.origine === 'AUTO'"
+              class="text-xs text-violet-600">🤖 Automatica — sola lettura</span>
+      </div>
+      <button @click="chiudiDettaglio()" aria-label="Chiudi"
+              class="p-1.5 rounded hover:bg-slate-100 text-slate-500 text-lg
+                     focus:outline-none focus:ring-2 focus:ring-slate-400">✕</button>
+    </div>
+
+    <!-- corpo scrollabile -->
+    <div class="drawer-body px-5 py-4">
+      <template x-if="dettaglioVoce">
+        <div class="space-y-4">
+
+          <!-- Tipo + data/ora -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <p class="text-xs font-medium text-slate-500 mb-1">Tipo</p>
+              <span :class="tipoInfo(dettaglioVoce.tipo).cls"
+                    class="inline-flex text-xs px-2 py-0.5 rounded-full font-medium"
+                    x-text="tipoInfo(dettaglioVoce.tipo).icona + ' ' + tipoInfo(dettaglioVoce.tipo).etichetta">
+              </span>
+            </div>
+            <div>
+              <p class="text-xs font-medium text-slate-500 mb-1">Data e ora</p>
+              <p class="text-sm text-slate-700" x-text="UTILS.formatDataOra(dettaglioVoce.data_ora)"></p>
+            </div>
+          </div>
+
+          <!-- Titolo -->
+          <div>
+            <p class="text-xs font-medium text-slate-500 mb-1">Titolo</p>
+            <p class="text-sm font-semibold text-slate-800" x-text="dettaglioVoce.titolo || '—'"></p>
+          </div>
+
+          <!-- Descrizione -->
+          <div x-show="dettaglioVoce.descrizione">
+            <p class="text-xs font-medium text-slate-500 mb-1">Descrizione</p>
+            <p class="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed"
+               x-text="dettaglioVoce.descrizione"></p>
+          </div>
+
+          <!-- Soggetti -->
+          <div x-show="(dettaglioVoce.soggetti ?? []).length > 0">
+            <p class="text-xs font-medium text-slate-500 mb-1">Soggetti</p>
+            <div class="flex flex-wrap gap-1">
+              <template x-for="s in (dettaglioVoce.soggetti ?? [])" :key="s">
+                <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full" x-text="s"></span>
+              </template>
+            </div>
+          </div>
+
+          <!-- Allegati -->
+          <div x-show="(dettaglioVoce.allegati ?? []).length > 0">
+            <p class="text-xs font-medium text-slate-500 mb-1">Allegati</p>
+            <ul class="space-y-1">
+              <template x-for="all in (dettaglioVoce.allegati ?? [])" :key="all.filename">
+                <li class="flex items-center gap-2 text-xs bg-slate-50 rounded px-2 py-1">
+                  <span class="flex-1 truncate" x-text="'📎 ' + all.filename"></span>
+                  <button x-show="all.base64" type="button"
+                          @click="ALLEGATI.apriAllegato(all.base64, all.filename)"
+                          class="text-blue-600 hover:text-blue-800
+                                 focus:outline-none focus:ring-1 focus:ring-blue-400 rounded">Apri</button>
+                  <button x-show="all.base64" type="button"
+                          @click="ALLEGATI.scaricaAllegato(all.base64, all.filename)"
+                          class="text-slate-400 hover:text-blue-600
+                                 focus:outline-none focus:ring-1 focus:ring-slate-400 rounded">⬇</button>
+                </li>
+              </template>
+            </ul>
+          </div>
+
+          <!-- Riferimenti URL -->
+          <div x-show="(dettaglioVoce.riferimenti_url ?? []).length > 0">
+            <p class="text-xs font-medium text-slate-500 mb-1">Riferimenti URL</p>
+            <ul class="space-y-0.5">
+              <template x-for="url in (dettaglioVoce.riferimenti_url ?? [])" :key="url">
+                <li>
+                  <a :href="url" target="_blank" rel="noopener"
+                     class="text-xs text-blue-600 hover:underline break-all" x-text="url"></a>
+                </li>
+              </template>
+            </ul>
+          </div>
+
+          <!-- Firma -->
+          <div x-show="dettaglioVoce.firma" class="border-t border-slate-100 pt-3">
+            <p class="text-xs font-medium text-slate-500 mb-2">Firma</p>
+            <div class="bg-green-50 border border-green-200 rounded-lg p-3">
+              <p class="text-xs text-green-700 mb-2"
+                 x-text="'Firmata da ' + (dettaglioVoce.firma?.firmato_da || '—') +
+                          ' · ' + UTILS.formatDataOra(dettaglioVoce.firma?.firmato_il)">
+              </p>
+              <img x-show="dettaglioVoce.firma?.firma_png_base64"
+                   :src="dettaglioVoce.firma?.firma_png_base64"
+                   class="max-h-14 border border-green-200 rounded bg-white" alt="Firma">
+            </div>
+          </div>
+
+        </div>
+      </template>
+    </div>
+
+    <!-- footer fisso -->
+    <div class="drawer-footer px-5 py-4 border-t border-slate-200 bg-slate-50 flex justify-end">
+      <button @click="chiudiDettaglio()"
+              class="text-sm text-slate-600 hover:text-slate-800 px-5 py-2
+                     border border-slate-300 rounded-lg bg-white hover:bg-slate-50 transition-colors
+                     focus:outline-none focus:ring-2 focus:ring-slate-400">
+        Chiudi
+      </button>
+    </div>
+
+  </div><!-- /drawer dettaglio -->
 
 
   <!-- ═══════════════════════════════════════════════════════════════
