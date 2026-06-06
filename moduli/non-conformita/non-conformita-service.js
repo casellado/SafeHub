@@ -42,7 +42,7 @@ const NC_SERVICE = (() => {
     tipo_file:            'non_conformita',
     cantiere_id:          cantiereId ?? '',
     descrizione:          '',
-    livello:              'lieve',    // 'lieve' | 'grave' | 'gravissima'
+    livello:              'lieve',    // 'gravissima' | 'grave' | 'media' | 'lieve' (allineato a SafeCant LIVELLI_NC)
     impresa_id:           '',         // facoltativo — può essere vuoto
     data_rilevazione:     UTILS.oggi(),
     scadenza_risoluzione: '',         // ISO date o stringa vuota

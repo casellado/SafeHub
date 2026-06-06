@@ -180,12 +180,16 @@ function NonConformita() {
       return this.imprese.find(i => i.id === impresaId)?.ragioneSociale ?? null;
     },
 
-    livelloLabel(l) { return { lieve:'Lieve', grave:'Grave', gravissima:'Gravissima' }[l] ?? l; },
+    livelloLabel(l) {
+      return { gravissima:'Gravissima', grave:'Grave', media:'Media', lieve:'Lieve' }[l] ?? l;
+    },
 
+    // Scala cromatica decrescente allineata a SafeCant (rosso→arancio→giallo→ambra)
     livelloCls(l) {
       if (l === 'gravissima') return 'bg-red-100 text-red-800 font-semibold';
       if (l === 'grave')      return 'bg-orange-100 text-orange-800';
-      return 'bg-amber-50 text-amber-700';
+      if (l === 'media')      return 'bg-yellow-100 text-yellow-800';
+      return 'bg-amber-50 text-amber-600';   // lieve
     },
 
     /**
@@ -465,9 +469,10 @@ const _TEMPLATE_NC = `
           <select id="nc-livello" x-model="formDati.livello"
                   class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm
                          focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="lieve">Lieve</option>
-            <option value="grave">Grave</option>
             <option value="gravissima">Gravissima</option>
+            <option value="grave">Grave</option>
+            <option value="media">Media</option>
+            <option value="lieve">Lieve</option>
           </select>
         </div>
         <div>
