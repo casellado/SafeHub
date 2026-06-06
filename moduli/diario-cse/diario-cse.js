@@ -1,17 +1,21 @@
 /**
- * diario-cse.js — M22: Diario CSE, Step 1 (sole voci manuali).
+ * diario-cse.js — M22: Diario CSE, Step 1+2.
  *
  * DIARIO_SERVICE (embedded): crea/leggi/aggiorna/cestina voci su
  *   08_Diario-CSE/<YYYY>/<MM>/<id>.json (cartelle al volo).
  * Allegati: base64 nel JSON { filename, base64 } — come il resto del sistema.
  * Firma opzionale: sigilla la voce (stato_voce='firmata'), immutabile.
- * Storage: file=stato, nessun IDB per Step 1 (lettura diretta da cartelle).
+ * Storage: file=stato, nessun IDB (lettura diretta da cartelle).
  *
- * Step 2 (hook AUTO), Step 3 (PDF/stampa), Step 4 (chip soggetti): non qui.
+ * Step 2: hook AUTO — voci generate dagli altri moduli (NC, futuri).
+ *   creaVoceAuto() è il punto unico che ogni modulo chiama.
+ *   Le voci AUTO sono in sola lettura (aggiornaVoce le rifiuta).
+ * Step 3 (PDF/stampa), Step 4 (chip soggetti): non qui.
  */
 
 // ── Configurazione tipi voce ──────────────────────────────────────────────────
 
+// auto_only:true → appare nel filtro lista ma NON nel form di creazione manuale.
 const _TIPI_DIARIO = [
   { valore: 'TELEFONATA',              etichetta: 'Telefonata',              icona: '📞', cls: 'bg-blue-100 text-blue-800' },
   { valore: 'EMAIL_PEC',               etichetta: 'Email / PEC',             icona: '📧', cls: 'bg-indigo-100 text-indigo-800' },
@@ -21,6 +25,8 @@ const _TIPI_DIARIO = [
   { valore: 'PROMEMORIA',              etichetta: 'Promemoria',              icona: '🔔', cls: 'bg-orange-100 text-orange-700' },
   { valore: 'COMUNICAZIONE_AUTORITA',  etichetta: 'Comunicazione autorità',  icona: '🏛',  cls: 'bg-teal-100 text-teal-800' },
   { valore: 'ALTRO',                   etichetta: 'Altro',                   icona: '📝', cls: 'bg-slate-100 text-slate-700' },
+  // ── Tipi AUTO — generati dagli hook dei moduli (Step 2+) ──
+  { valore: 'NON_CONFORMITA', etichetta: 'Non Conformità', icona: '⚠', cls: 'bg-rose-100 text-rose-800', auto_only: true },
 ];
 
 // ── Service dati ──────────────────────────────────────────────────────────────
@@ -88,10 +94,11 @@ const DIARIO_SERVICE = (() => {
 
   /**
    * Riscrive una voce nella sua posizione fisica (_dir_anno/_dir_mese).
-   * Rifiuta se stato_voce='firmata' (voce sigillata → immutabile).
+   * Rifiuta se stato_voce='firmata' o se origine='AUTO' (sola lettura).
    */
   const aggiornaVoce = async (voce) => {
     if (voce.stato_voce === 'firmata') throw new Error('Voce firmata: immutabile.');
+    if (voce.origine === 'AUTO') throw new Error('Voce automatica: non modificabile.');
     voce.aggiornato_il = new Date().toISOString();
     const dir = await _getDirMese(voce.cantiere_id, voce._dir_anno, voce._dir_mese);
     await FILESYSTEM.scriviJson(dir, `${voce.id}.json`, voce);
@@ -213,6 +220,43 @@ const DIARIO_SERVICE = (() => {
     }
   };
 
+  // ── Hook AUTO — punto unico per tutti i moduli ──────────────────────────────
+
+  /**
+   * Crea una voce diario automatica. Chiamata dagli hook dei moduli (NC, ecc.).
+   * origine:'AUTO' → aggiornaVoce la rifiuta; cestinaVoce funziona normalmente.
+   * @param {{ cantiere_id, tipo, titolo, descrizione, soggetti?, riferimento? }} o
+   * @returns {Promise<object>}
+   */
+  const creaVoceAuto = async ({ cantiere_id, tipo, titolo, descrizione, soggetti = [], riferimento = null }) => {
+    const ora  = new Date();
+    const anno = String(ora.getFullYear());
+    const mese = String(ora.getMonth() + 1).padStart(2, '0');
+    const voce = {
+      id:              UTILS.uuid(),
+      tipo_file:       'voce_diario_cse',
+      cantiere_id:     cantiere_id ?? '',
+      origine:         'AUTO',
+      tipo:            tipo ?? 'OSSERVAZIONE',
+      data_ora:        ora.toISOString(),
+      soggetti:        soggetti ?? [],
+      titolo:          titolo ?? '',
+      descrizione:     descrizione ?? '',
+      allegati:        [],
+      riferimenti_url: [],
+      riferimento,      // id del documento sorgente (NC, verbale riunione, ecc.)
+      firma:           null,
+      stato_voce:      'bozza',   // le AUTO non si firmano
+      _dir_anno:       anno,
+      _dir_mese:       mese,
+      creato_il:       ora.toISOString(),
+      creato_da:       'sistema',
+      aggiornato_il:   ora.toISOString(),
+    };
+    await creaVoce(voce);
+    return voce;
+  };
+
   // ── API pubblica ─────────────────────────────────────────────────────────────
 
   return {
@@ -222,6 +266,7 @@ const DIARIO_SERVICE = (() => {
     leggiCestino,
     aggiornaVoce,
     firmaVoce,
+    creaVoceAuto,
     cestinaVoce,
     ripristinaVoce,
     eliminaVoceDefinitiva,
@@ -710,7 +755,9 @@ const _TEMPLATE_DIARIO = `
       <div role="list" aria-label="Annotazioni diario" class="space-y-2">
         <template x-for="voce in vociFiltrate" :key="voce.id">
           <article role="listitem"
-                   :class="voce.stato_voce === 'firmata' ? 'border-green-200 bg-green-50/30' : 'border-slate-200 bg-white'"
+                   :class="voce.stato_voce === 'firmata' ? 'border-green-200 bg-green-50/30' :
+                           voce.origine === 'AUTO'        ? 'border-violet-200 bg-violet-50/20' :
+                                                            'border-slate-200 bg-white'"
                    class="border rounded-xl px-4 py-3 hover:border-slate-300 transition-all">
 
             <!-- Riga 1: tipo + data + badge firmata -->
@@ -723,6 +770,11 @@ const _TEMPLATE_DIARIO = `
               <span x-show="voce.stato_voce === 'firmata'"
                     class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex-shrink-0">
                 ✓ Firmata
+              </span>
+              <span x-show="voce.origine === 'AUTO'"
+                    class="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full flex-shrink-0"
+                    title="Voce generata automaticamente dal sistema">
+                🤖 Automatica
               </span>
               <span x-show="(voce.allegati ?? []).length > 0"
                     class="text-xs text-slate-400 flex-shrink-0"
@@ -762,16 +814,16 @@ const _TEMPLATE_DIARIO = `
                                  focus:outline-none focus:ring-1 focus:ring-blue-400 rounded px-1"
                           :title="voce.allegati[0].filename">📎</button>
                 </template>
-                <!-- Firma (solo bozza) -->
-                <template x-if="voce.stato_voce === 'bozza'">
+                <!-- Firma (solo bozza MANUALE) -->
+                <template x-if="voce.stato_voce === 'bozza' && voce.origine !== 'AUTO'">
                   <button @click="apriFirmaPerVoce(voce.id)"
                           class="text-xs text-slate-500 hover:text-green-700 px-2 py-1
                                  border border-slate-200 rounded-lg hover:bg-green-50 transition-colors
                                  focus:outline-none focus:ring-2 focus:ring-green-400"
                           title="Firma questa annotazione">✍ Firma</button>
                 </template>
-                <!-- Modifica (solo bozza) -->
-                <template x-if="voce.stato_voce === 'bozza'">
+                <!-- Modifica (solo bozza MANUALE) -->
+                <template x-if="voce.stato_voce === 'bozza' && voce.origine !== 'AUTO'">
                   <button @click="modificaVoce(voce)"
                           class="text-xs text-slate-600 hover:text-slate-900 px-3 py-1
                                  border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors
@@ -866,7 +918,7 @@ const _TEMPLATE_DIARIO = `
           <select id="diario-tipo" x-model="formDati.tipo"
                   class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm
                          focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <template x-for="t in _tipiDiario()" :key="t.valore">
+            <template x-for="t in _tipiDiario().filter(t => !t.auto_only)" :key="t.valore">
               <option :value="t.valore" x-text="t.icona + '  ' + t.etichetta"></option>
             </template>
           </select>

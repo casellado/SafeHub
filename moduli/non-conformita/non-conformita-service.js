@@ -73,10 +73,71 @@ const NC_SERVICE = (() => {
     );
   };
 
+  // ── Hook Diario CSE — best-effort (non bloccano mai l'operazione NC) ─────────
+
+  /** Etichetta leggibile per il livello NC. */
+  const _etichettaLivello = (l) =>
+    ({ gravissima: 'Gravissima', grave: 'Grave', media: 'Media', lieve: 'Lieve' }[l] ?? l ?? '—');
+
+  /** Recupera la ragione sociale dell'impresa dalla cache anagrafica (se disponibile). */
+  const _nomeImpresa = (impresa_id) => {
+    if (!impresa_id) return null;
+    // ANAGRAFICA_SERVICE è globale (shared/anagrafica-service.js), sempre disponibile
+    return ANAGRAFICA_SERVICE.get('imprese').find(i => i.id === impresa_id)?.ragioneSociale ?? impresa_id;
+  };
+
+  /**
+   * Tenta di registrare la CREAZIONE di una NC nel Diario CSE.
+   * DIARIO_SERVICE è caricato dopo questo file: il check typeof è la guardia
+   * che rende safe chiamarla anche in un contesto dove il diario non è ancora pronto.
+   */
+  const _hookDiarioNcCreata = async (nc) => {
+    if (typeof DIARIO_SERVICE === 'undefined') return;
+    const impresa  = _nomeImpresa(nc.impresa_id);
+    const soggetti = impresa ? [impresa] : [];
+    const descBreve = (nc.descrizione ?? '').slice(0, 100);
+    await DIARIO_SERVICE.creaVoceAuto({
+      cantiere_id: nc.cantiere_id,
+      tipo:        'NON_CONFORMITA',
+      titolo:      `Non conformità aperta: ${descBreve || '(senza descrizione)'}`,
+      descrizione: [
+        `Livello: ${_etichettaLivello(nc.livello)}`,
+        impresa             ? `Impresa: ${impresa}`                                        : null,
+        nc.scadenza_risoluzione ? `Scadenza risoluzione: ${UTILS.formatData(nc.scadenza_risoluzione)}` : null,
+      ].filter(Boolean).join('\n'),
+      soggetti,
+      riferimento: nc.id,
+    });
+  };
+
+  /**
+   * Tenta di registrare la CHIUSURA di una NC nel Diario CSE.
+   * Chiamata solo quando nuovoStato === 'CHIUSA'.
+   */
+  const _hookDiarioNcChiusa = async (nc) => {
+    if (typeof DIARIO_SERVICE === 'undefined') return;
+    const impresa  = _nomeImpresa(nc.impresa_id);
+    const soggetti = impresa ? [impresa] : [];
+    const descBreve = (nc.descrizione ?? '').slice(0, 100);
+    await DIARIO_SERVICE.creaVoceAuto({
+      cantiere_id: nc.cantiere_id,
+      tipo:        'NON_CONFORMITA',
+      titolo:      `Non conformità risolta: ${descBreve || '(senza descrizione)'}`,
+      descrizione: [
+        `Livello: ${_etichettaLivello(nc.livello)}`,
+        impresa ? `Impresa: ${impresa}` : null,
+        `Data chiusura: ${UTILS.formatData(new Date().toISOString())}`,
+      ].filter(Boolean).join('\n'),
+      soggetti,
+      riferimento: nc.id,
+    });
+  };
+
   // ── CRUD ─────────────────────────────────────────────────────────────────────
 
   /**
    * Scrive una nuova NC in 05_Non-Conformita/Aperte/<uuid>.json.
+   * Dopo il salvataggio, tenta di registrare l'evento nel Diario CSE (best-effort).
    * @param {object} nc  record creato con creaNCVuota() e popolato
    * @returns {Promise<object>}
    */
@@ -84,6 +145,8 @@ const NC_SERVICE = (() => {
     nc.aggiornato_il = new Date().toISOString();
     const dir = await _getDirNC(nc.cantiere_id, true);
     await FILESYSTEM.scriviJson(dir, `${nc.id}.json`, nc);
+    // Hook diario — fire-and-forget: un errore qui non deve mai bloccare la NC
+    _hookDiarioNcCreata(nc).catch(e => console.warn('[diario] hook NC creata:', e));
     return nc;
   };
 
@@ -114,7 +177,12 @@ const NC_SERVICE = (() => {
       throw new Error(`NC_SERVICE: stato_risoluzione non valido: "${nuovoStato}"`);
     }
     if (nc.stato_risoluzione === nuovoStato) return nc;
-    return aggiornaNC({ ...nc, stato_risoluzione: nuovoStato });
+    const aggiornata = await aggiornaNC({ ...nc, stato_risoluzione: nuovoStato });
+    // Hook diario — solo alla CHIUSURA; gli stati intermedi non generano voci
+    if (nuovoStato === 'CHIUSA') {
+      _hookDiarioNcChiusa(aggiornata).catch(e => console.warn('[diario] hook NC chiusa:', e));
+    }
+    return aggiornata;
   };
 
   /**
