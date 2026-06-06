@@ -29,6 +29,29 @@ const _TIPI_DIARIO = [
   { valore: 'NON_CONFORMITA', etichetta: 'Non Conformità', icona: '⚠', cls: 'bg-rose-100 text-rose-800', auto_only: true },
 ];
 
+// Promemori normativi — UI only, NON entrano nel DOCX esportato.
+const NOTE_NORMATIVE_DIARIO = [
+  {
+    titolo: 'Natura dello strumento',
+    testo:  'Il diario del CSE non è un registro obbligatorio per legge (diverso dal giornale dei ' +
+            'lavori, in capo alla Direzione Lavori). È uno strumento volontario di organizzazione e ' +
+            'auto-tutela: documenta in modo ordinato e datato l\'attività di coordinamento e vigilanza.',
+  },
+  {
+    titolo: 'Perché tenerlo (art. 92; giurisprudenza)',
+    testo:  'La giurisprudenza attribuisce al CSE un ruolo di alta vigilanza sempre più stringente. ' +
+            'Poter dimostrare cosa si è osservato, quando e quali decisioni si sono prese è una tutela ' +
+            'concreta in caso di contestazioni: il diario è la memoria documentata del tuo operato.',
+  },
+  {
+    titolo: 'Valore delle voci',
+    testo:  'Le voci firmate vengono sigillate (non più modificabili) e fanno fede come annotazione ' +
+            'datata. Le voci automatiche registrano fatti generati dal sistema (es. apertura/chiusura ' +
+            'di una non conformità). Il diario integra, non sostituisce, i documenti ufficiali ' +
+            '(verbali, contestazioni, comunicazioni).',
+  },
+];
+
 // ── Service dati ──────────────────────────────────────────────────────────────
 
 const DIARIO_SERVICE = (() => {
@@ -484,9 +507,11 @@ function DiarioCse() {
     _firmaUsaCanvas: false,   // true quando l'utente sceglie esplicitamente il canvas
 
     _cantiereId: null,
+    noteAperte:  false,
 
     // ── Computed ─────────────────────────────────────────────────────────────
 
+    get noteDiario()   { return NOTE_NORMATIVE_DIARIO; },
     get vociFiltrate() {
       let v = this.voci;
       if (this.filtroTipo) v = v.filter(x => x.tipo === this.filtroTipo);
@@ -931,19 +956,36 @@ const _TEMPLATE_DIARIO = `
      class="max-w-4xl">
 
   <!-- === HEADER === -->
-  <div class="flex items-center justify-between mb-5">
+  <div class="flex items-center justify-between mb-4">
     <div>
       <h1 class="text-xl font-semibold text-slate-800">📋 Diario CSE</h1>
       <p class="text-xs text-slate-400 mt-0.5"
          x-text="vociFiltrate.length + ' annotazioni nel periodo · ' + voci.filter(v=>v.stato_voce==='firmata').length + ' firmate'">
       </p>
     </div>
-    <button @click="nuovaAnnotazione()" x-show="$store.cantiere.id"
-            class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium
-                   px-4 py-2 rounded-lg transition-colors
-                   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-      + Nuova annotazione
-    </button>
+    <div class="flex items-center gap-2">
+      <button @click="noteAperte = !noteAperte"
+              :aria-expanded="String(noteAperte)"
+              class="text-xs text-sky-700 bg-sky-50 border border-sky-200
+                     px-2.5 py-1 rounded-full hover:bg-sky-100 transition-colors
+                     focus:outline-none focus:ring-2 focus:ring-sky-400">
+        &#x2139; Note normative
+      </button>
+      <button @click="nuovaAnnotazione()" x-show="$store.cantiere.id"
+              class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium
+                     px-4 py-2 rounded-lg transition-colors
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+        + Nuova annotazione
+      </button>
+    </div>
+  </div>
+
+  <!-- NOTE NORMATIVE -->
+  <div x-show="noteAperte" x-transition class="nota-normativa-panel mb-4" role="note">
+    <p class="text-xs text-sky-500 mb-2 italic">Promemoria per il CSE — non compare nel documento.</p>
+    <template x-for="nota in noteDiario" :key="nota.titolo">
+      <div><h4 x-text="nota.titolo"></h4><p x-text="nota.testo"></p></div>
+    </template>
   </div>
 
   <!-- Nessun cantiere -->
