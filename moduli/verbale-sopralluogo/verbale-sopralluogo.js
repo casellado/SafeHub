@@ -649,6 +649,59 @@ function VerbaleSOPRALLUOGO() {
         setTimeout(() => URL.revokeObjectURL(url), 60000);
       } catch (err) { ERRORI.gestisciErrore('verbale-sopralluogo/apri-file-archivio', err); }
     },
+
+    // ── Esporta nc_draft → modulo Non Conformità (M14-c) ─────────────────────
+
+    async esportaNCDraft(nc) {
+      if (!NC_SERVICE) {
+        NOTIFICHE.attenzione('NC', 'Modulo Non Conformità non disponibile.');
+        return;
+      }
+      const cantId = this.corrente?.metadati?.cantiere_id || Alpine.store('cantiere').id;
+      if (!cantId) {
+        NOTIFICHE.attenzione('NC', 'Nessun cantiere associato al verbale.');
+        return;
+      }
+
+      // Conferma: diversa se già esportata (anti-duplicazione non bloccante)
+      if (nc.esportata_a_nc) {
+        if (!confirm('Questa NC è già stata esportata. Creare una seconda copia nel modulo Non Conformità?')) return;
+      } else {
+        if (!confirm('Crea una Non Conformità da questa rilevazione?')) return;
+      }
+
+      try {
+        // Mappa nc_draft → record NC (identità di campi grazie all'allineamento dei 4 livelli)
+        const nuovaNC = NC_SERVICE.creaNCVuota(cantId);
+        nuovaNC.descrizione          = nc.descrizione ?? '';
+        nuovaNC.livello              = nc.livello ?? 'lieve';
+        // scadenza_calcolata può essere ISO datetime (gravissima) o date — slice sicuro
+        nuovaNC.scadenza_risoluzione = nc.scadenza_calcolata
+          ? nc.scadenza_calcolata.slice(0, 10)
+          : '';
+        nuovaNC.origine              = 'da_verbale_sopralluogo';
+        nuovaNC.verbale_origine_id   = this.corrente.id_locale_verbale ?? '';
+        nuovaNC.impresa_id           = '';   // nc_draft non porta impresa_id
+
+        await NC_SERVICE.creaNC(nuovaNC);
+
+        // Marca l'nc_draft come esportato nel record verbale (unico campo aggiunto)
+        const idx = (this.corrente.nc_drafts ?? []).findIndex(d => d.id_locale === nc.id_locale);
+        if (idx >= 0) {
+          this.corrente.nc_drafts[idx] = {
+            ...this.corrente.nc_drafts[idx],
+            esportata_a_nc: true,
+            nc_creata_id:   nuovaNC.id,
+          };
+          this.corrente = { ...this.corrente };
+          await this.salva();
+        }
+
+        NOTIFICHE.successo('Non Conformità creata', 'La trovi nel modulo Non Conformità.');
+      } catch (err) {
+        ERRORI.gestisciErrore('verbale-sopralluogo/esporta-nc', err);
+      }
+    },
   };
 }
 
@@ -1047,25 +1100,29 @@ const _TEMPLATE_VS = /* html */`
 
       <!-- ── SCHEDA NC ── -->
       <div x-show="scheda === 'nc'" class="space-y-3">
-        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
-          <!-- TODO M14: quando esiste il modulo Non Conformità, gli nc_drafts del verbale
-               generano voci NC da monitorare (aggancio Flusso A→B). Per ora sola lettura. -->
-          Le Non Conformità rilevate sul campo sono mostrate qui per consultazione.
-          Verranno integrate con il modulo Non Conformità (M14) quando disponibile.
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-700">
+          Le Non Conformità rilevate sul campo possono essere esportate nel modulo NC.
+          Ogni esportazione crea una copia indipendente: il verbale resta invariato.
         </div>
         <div x-show="(corrente.nc_drafts ?? []).length === 0"
              class="text-slate-400 text-sm py-4 text-center">Nessuna NC rilevata nel sopralluogo.</div>
         <ul class="space-y-2" role="list">
           <template x-for="nc in (corrente.nc_drafts ?? [])" :key="nc.id_locale">
             <li class="bg-white border border-slate-200 rounded-lg p-3">
-              <div class="flex items-center gap-2 mb-1">
+              <!-- Riga badge livello + indicatore esportazione -->
+              <div class="flex items-center gap-2 mb-1 flex-wrap">
                 <span class="text-xs font-semibold uppercase px-2 py-0.5 rounded"
                       :class="{
-                        'bg-red-100 text-red-800': nc.livello === 'gravissima',
+                        'bg-red-100 text-red-800':    nc.livello === 'gravissima',
                         'bg-orange-100 text-orange-800': nc.livello === 'grave',
-                        'bg-yellow-100 text-yellow-800': !nc.livello || nc.livello === 'lieve'
+                        'bg-yellow-100 text-yellow-800': nc.livello === 'media',
+                        'bg-amber-50 text-amber-600':  !nc.livello || nc.livello === 'lieve'
                       }"
                       x-text="nc.livello ?? 'lieve'"></span>
+                <span x-show="nc.esportata_a_nc"
+                      class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                  ✓ già esportata a NC
+                </span>
               </div>
               <p class="text-sm text-slate-800" x-text="nc.descrizione ?? '—'"></p>
               <template x-if="nc.scadenza_calcolata">
@@ -1073,6 +1130,18 @@ const _TEMPLATE_VS = /* html */`
                   Scadenza: <span x-text="nc.scadenza_calcolata?.slice(0,10) ?? ''"></span>
                 </p>
               </template>
+              <!-- Tasto Esporta verso NC (M14-c) -->
+              <div class="mt-2">
+                <button type="button" @click="esportaNCDraft(nc)"
+                        :class="nc.esportata_a_nc
+                          ? 'text-slate-500 bg-slate-50 border-slate-200 hover:bg-slate-100'
+                          : 'text-blue-700 bg-blue-50 border-blue-200 hover:bg-blue-100'"
+                        class="text-xs border px-2.5 py-1 rounded-lg transition-colors
+                               focus:outline-none focus:ring-2 focus:ring-blue-400">
+                  <span x-show="!nc.esportata_a_nc">↗ Esporta verso NC</span>
+                  <span x-show="nc.esportata_a_nc">↗ Esporta di nuovo</span>
+                </button>
+              </div>
             </li>
           </template>
         </ul>
