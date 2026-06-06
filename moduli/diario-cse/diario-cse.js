@@ -332,8 +332,9 @@ function DiarioCse() {
     nuovoUrl:                  '',
 
     // Firma
-    firmaModal:     false,    // mostra il pannello firma
-    _firmaVoceId:   null,     // null = firma per il drawer; uuid = firma per voce esistente dalla lista
+    firmaModal:      false,   // mostra il pannello firma
+    _firmaVoceId:    null,    // null = firma per il drawer; uuid = firma per voce esistente dalla lista
+    _firmaUsaCanvas: false,   // true quando l'utente sceglie esplicitamente il canvas
 
     _cantiereId: null,
 
@@ -475,20 +476,27 @@ function DiarioCse() {
 
     // ── Firma ─────────────────────────────────────────────────────────────────
 
+    /** True se IMPOSTAZIONI_SERVICE ha una firma permanente valida (caso normale da PC). */
+    _firmaPermanenteDisponibile() {
+      return !!IMPOSTAZIONI_SERVICE.firma()?.firma_png_base64;
+    },
+
     /**
      * "Salva e firma": valida il form, poi apre il pannello firma.
      * La firma viene applicata alla voce del drawer (formDati).
      */
     apriFirmaPerDrawer() {
       if (!this._validaForm()) return;
-      this._firmaVoceId = null;
-      this.firmaModal   = true;
+      this._firmaVoceId    = null;
+      this._firmaUsaCanvas = false;   // parte sempre dal pannello permanente (se disponibile)
+      this.firmaModal      = true;
     },
 
     /** Firma diretta di una voce già salvata (bozza) dalla lista. */
     apriFirmaPerVoce(voceId) {
-      this._firmaVoceId = voceId;
-      this.firmaModal   = true;
+      this._firmaVoceId    = voceId;
+      this._firmaUsaCanvas = false;
+      this.firmaModal      = true;
     },
 
     /** Usa la firma permanente da Impostazioni (senza canvas). */
@@ -499,17 +507,21 @@ function DiarioCse() {
         return;
       }
       const png = await _scalafirma(firm.firma_png_base64) ?? firm.firma_png_base64;
-      await this.onFirmaAcquisita(png);
+      await this.onFirmaAcquisita(png, 'permanente');
     },
 
-    /** Chiamata sia da FirmaCanvas che da usaFirmaPermanente. */
-    async onFirmaAcquisita(png) {
-      this.firmaModal = false;
+    /**
+     * Chiamata sia dal pannello permanente (tipo_firma='permanente')
+     * che da FirmaCanvas (tipo_firma='canvas').
+     */
+    async onFirmaAcquisita(png, tipo_firma = 'canvas') {
+      this.firmaModal      = false;
+      this._firmaUsaCanvas = false;   // reset per la prossima apertura
       const firma = {
         firma_png_base64: png,
         firmato_il:       new Date().toISOString(),
         firmato_da:       IMPOSTAZIONI_SERVICE.cse()?.nome_cognome ?? '',
-        tipo_firma:       'canvas',
+        tipo_firma,
       };
 
       if (this._firmaVoceId === null) {
@@ -1095,59 +1107,98 @@ const _TEMPLATE_DIARIO = `
 
 
   <!-- ═══════════════════════════════════════════════════════════════
-       PANNELLO FIRMA — overlay centrato.
-       Usa FirmaCanvas() di flusso-b-helpers.js (già caricato).
+       PANNELLO FIRMA — overlay centrato, a due pannelli adattativi.
+       • Pannello A (permanente): default se firma M2 disponibile.
+       • Pannello B (canvas, x-if): montato solo su richiesta esplicita.
        ═══════════════════════════════════════════════════════════════ -->
   <div x-show="firmaModal" x-cloak
        class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-       @click.self="firmaModal = false; _firmaVoceId = null">
+       @click.self="firmaModal = false; _firmaVoceId = null; _firmaUsaCanvas = false"
+       @keydown.escape.window="firmaModal = false; _firmaVoceId = null; _firmaUsaCanvas = false">
 
-    <div x-data="FirmaCanvas()" x-init="init()"
-         @firma-acquisita.window="if (firmaModal) { firmaModal = false; onFirmaAcquisita($event.detail.png); }"
-         @firma-annullata.window="firmaModal = false; _firmaVoceId = null"
-         class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg">
+    <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg">
 
       <h3 class="text-base font-semibold text-slate-800 mb-4">Firma annotazione</h3>
 
-      <!-- Canvas firma -->
-      <canvas x-ref="canvas"
-              class="block border border-slate-200 rounded-lg w-full touch-none cursor-crosshair"
-              style="height:110px"
-              @pointerdown="startDraw($event)" @pointermove="draw($event)"
-              @pointerup="endDraw()" @pointerleave="endDraw()"
-              @touchstart.prevent="startDraw($event)" @touchmove.prevent="draw($event)"
-              @touchend="endDraw()">
-      </canvas>
-      <p class="text-xs text-slate-400 mt-1">Traccia la firma con il mouse, il dito o lo stilo.</p>
-
-      <!-- Opzione firma permanente -->
-      <button type="button" @click="$dispatch('firma-annullata'); usaFirmaPermanente()"
-              class="mt-3 w-full text-xs text-slate-500 hover:text-slate-700 py-2
-                     border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors
-                     focus:outline-none focus:ring-2 focus:ring-slate-400">
-        Oppure usa la firma permanente da Impostazioni
-      </button>
-
-      <div class="flex gap-3 mt-4 justify-end">
-        <button type="button" @click="pulisci()"
-                class="text-sm text-slate-500 px-4 py-2 border border-slate-300 rounded-lg
-                       hover:bg-slate-50 transition-colors
-                       focus:outline-none focus:ring-2 focus:ring-slate-400">
-          Pulisci
-        </button>
-        <button type="button" @click="$dispatch('firma-annullata')"
-                class="text-sm text-slate-500 px-4 py-2 border border-slate-300 rounded-lg
-                       hover:bg-slate-50 transition-colors
-                       focus:outline-none focus:ring-2 focus:ring-slate-400">
-          Annulla
-        </button>
-        <button type="button" @click="usa()"
-                class="text-sm bg-green-600 hover:bg-green-700 text-white font-medium
-                       px-5 py-2 rounded-lg transition-colors
+      <!-- === PANNELLO A: firma permanente (default se disponibile) === -->
+      <div x-show="_firmaPermanenteDisponibile() && !_firmaUsaCanvas">
+        <p class="text-xs text-slate-500 mb-3">
+          Usa la firma salvata nelle Impostazioni — nessun disegno necessario.
+        </p>
+        <div class="border border-slate-200 rounded-lg bg-slate-50 flex justify-center items-center py-4 mb-4">
+          <img :src="IMPOSTAZIONI_SERVICE.firma()?.firma_png_base64"
+               class="max-h-16 max-w-full" alt="Firma permanente">
+        </div>
+        <button type="button" @click="usaFirmaPermanente()"
+                class="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-medium
+                       py-2.5 rounded-lg transition-colors mb-2
                        focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
-          Applica firma
+          ✍ Applica firma salvata
         </button>
+        <div class="flex gap-2">
+          <button type="button" @click="_firmaUsaCanvas = true"
+                  class="flex-1 text-xs text-slate-500 hover:text-slate-700 py-2
+                         border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors
+                         focus:outline-none focus:ring-2 focus:ring-slate-400">
+            ✏ Disegna firma
+          </button>
+          <button type="button" @click="firmaModal = false; _firmaVoceId = null; _firmaUsaCanvas = false"
+                  class="flex-1 text-xs text-slate-500 hover:text-slate-700 py-2
+                         border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors
+                         focus:outline-none focus:ring-2 focus:ring-slate-400">
+            Annulla
+          </button>
+        </div>
       </div>
+
+      <!-- === PANNELLO B: canvas (montato on-demand con x-if) === -->
+      <template x-if="!_firmaPermanenteDisponibile() || _firmaUsaCanvas">
+        <div x-data="FirmaCanvas()" x-init="init()"
+             @firma-acquisita.window="if (firmaModal) { onFirmaAcquisita($event.detail.png, 'canvas'); }"
+             @firma-annullata.window="firmaModal = false; _firmaVoceId = null; _firmaUsaCanvas = false">
+
+          <canvas x-ref="canvas"
+                  class="block border border-slate-200 rounded-lg w-full touch-none cursor-crosshair"
+                  style="height:110px"
+                  @pointerdown="startDraw($event)" @pointermove="draw($event)"
+                  @pointerup="endDraw()" @pointerleave="endDraw()"
+                  @touchstart.prevent="startDraw($event)" @touchmove.prevent="draw($event)"
+                  @touchend="endDraw()">
+          </canvas>
+          <p class="text-xs text-slate-400 mt-1 mb-3">Traccia la firma con il mouse, il dito o lo stilo.</p>
+
+          <!-- Torna al pannello permanente se disponibile -->
+          <button type="button" x-show="_firmaPermanenteDisponibile()"
+                  @click="_firmaUsaCanvas = false"
+                  class="w-full text-xs text-slate-500 hover:text-slate-700 py-1.5 mb-3
+                         border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors
+                         focus:outline-none focus:ring-2 focus:ring-slate-400">
+            ← Usa firma salvata
+          </button>
+
+          <div class="flex gap-3 justify-end">
+            <button type="button" @click="pulisci()"
+                    class="text-sm text-slate-500 px-4 py-2 border border-slate-300 rounded-lg
+                           hover:bg-slate-50 transition-colors
+                           focus:outline-none focus:ring-2 focus:ring-slate-400">
+              Pulisci
+            </button>
+            <button type="button" @click="$dispatch('firma-annullata')"
+                    class="text-sm text-slate-500 px-4 py-2 border border-slate-300 rounded-lg
+                           hover:bg-slate-50 transition-colors
+                           focus:outline-none focus:ring-2 focus:ring-slate-400">
+              Annulla
+            </button>
+            <button type="button" @click="usa()"
+                    class="text-sm bg-green-600 hover:bg-green-700 text-white font-medium
+                           px-5 py-2 rounded-lg transition-colors
+                           focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+              Applica firma
+            </button>
+          </div>
+        </div>
+      </template>
+
     </div>
   </div>
 
