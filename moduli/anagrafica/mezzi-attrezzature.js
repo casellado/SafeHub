@@ -312,6 +312,9 @@ function ListaMezziAttrezzature() {
       this.formAtt = JSON.parse(JSON.stringify(a));
       this.formAtt.verifiche             ??= [];
       this.formAtt.documentiSpecifici    ??= [];
+      // Assegna id ai record pre-esistenti che ne sono privi (retrocompatibilità)
+      for (const v of this.formAtt.verifiche)          { if (!v.id) v.id = UTILS.generaId('vpa'); }
+      for (const d of this.formAtt.documentiSpecifici) { if (!d.id) d.id = UTILS.generaId('dsa'); }
       this.formAtt.dichiarazioneConformitaCE ??= { presente: false };
       this.formAtt.libretto              ??= {};
       this.formAtt.documenti_extra       ??= [];
@@ -348,36 +351,72 @@ function ListaMezziAttrezzature() {
       catch (err) { ERRORI.gestisciErrore('attrezzature/elimina', err); }
     },
 
-    // Verifiche attrezzatura
+    // Verifiche attrezzatura (soft-delete per storico)
     aggiungiVerificaAtt() {
-      (this.formAtt.verifiche ??= []).push({ tipo: '', data: null, prossima: null, filename: null, base64: null });
+      (this.formAtt.verifiche ??= []).push({
+        id: UTILS.generaId('vpa'),
+        tipo: '', data: null, prossima: null, filename: null, base64: null,
+      });
       this.formAtt = { ...this.formAtt }; this.modAtt = true;
     },
-    rimuoviVerificaAtt(idx) {
-      this.formAtt.verifiche.splice(idx, 1);
+    rimuoviVerificaAtt(id) {
+      const idx = (this.formAtt.verifiche ?? []).findIndex(v => v.id === id && !v._cestino);
+      if (idx < 0) return;
+      this.formAtt.verifiche[idx] = { ...this.formAtt.verifiche[idx], _cestino: true, _eliminato_il: new Date().toISOString() };
       this.formAtt = { ...this.formAtt }; this.modAtt = true;
     },
-    async onVerificaAttFile(idx, ev) {
+    async onVerificaAttFile(id, ev) {
       const f = ev.target.files?.[0]; if (!f) return;
       const b64 = await _leggiFileBase64MA(f);
-      this.formAtt.verifiche[idx] = { ...this.formAtt.verifiche[idx], filename: f.name, base64: b64 };
+      const old = (this.formAtt.verifiche ?? []).find(v => v.id === id && !v._cestino);
+      if (!old) return;
+      const oldIdx = this.formAtt.verifiche.indexOf(old);
+      this.formAtt.verifiche[oldIdx] = { ...old, _cestino: true, _eliminato_il: new Date().toISOString() };
+      this.formAtt.verifiche.push({ id: UTILS.generaId('vpa'), tipo: old.tipo, data: old.data, prossima: old.prossima, filename: f.name, base64: b64 });
       this.formAtt = { ...this.formAtt }; this.modAtt = true;
     },
 
-    // Documenti specifici attrezzatura (ponteggi)
+    // Documenti specifici attrezzatura — ponteggi (soft-delete per storico)
     aggiungiDocSpecAtt() {
-      (this.formAtt.documentiSpecifici ??= []).push({ tipo: '', scadenza: null, filename: null, base64: null });
+      (this.formAtt.documentiSpecifici ??= []).push({
+        id: UTILS.generaId('dsa'),
+        tipo: '', scadenza: null, filename: null, base64: null,
+      });
       this.formAtt = { ...this.formAtt }; this.modAtt = true;
     },
-    rimuoviDocSpecAtt(idx) {
-      this.formAtt.documentiSpecifici.splice(idx, 1);
+    rimuoviDocSpecAtt(id) {
+      const idx = (this.formAtt.documentiSpecifici ?? []).findIndex(d => d.id === id && !d._cestino);
+      if (idx < 0) return;
+      this.formAtt.documentiSpecifici[idx] = { ...this.formAtt.documentiSpecifici[idx], _cestino: true, _eliminato_il: new Date().toISOString() };
       this.formAtt = { ...this.formAtt }; this.modAtt = true;
     },
-    async onDocSpecAttFile(idx, ev) {
+    async onDocSpecAttFile(id, ev) {
       const f = ev.target.files?.[0]; if (!f) return;
       const b64 = await _leggiFileBase64MA(f);
-      this.formAtt.documentiSpecifici[idx] = { ...this.formAtt.documentiSpecifici[idx], filename: f.name, base64: b64 };
+      const old = (this.formAtt.documentiSpecifici ?? []).find(d => d.id === id && !d._cestino);
+      if (!old) return;
+      const oldIdx = this.formAtt.documentiSpecifici.indexOf(old);
+      this.formAtt.documentiSpecifici[oldIdx] = { ...old, _cestino: true, _eliminato_il: new Date().toISOString() };
+      this.formAtt.documentiSpecifici.push({ id: UTILS.generaId('dsa'), tipo: old.tipo, scadenza: old.scadenza, filename: f.name, base64: b64 });
       this.formAtt = { ...this.formAtt }; this.modAtt = true;
+    },
+
+    // ── Storico attrezzatura ──────────────────────────────────────────────
+    get verificheAttiveAtt() {
+      return (this.formAtt.verifiche ?? []).filter(v => !v._cestino);
+    },
+    storicoVerificaAtt(tipo) {
+      return (this.formAtt.verifiche ?? [])
+        .filter(v => v._cestino && v.tipo === tipo)
+        .sort((a, b) => (b._eliminato_il ?? '').localeCompare(a._eliminato_il ?? ''));
+    },
+    get docSpecAttiviAtt() {
+      return (this.formAtt.documentiSpecifici ?? []).filter(d => !d._cestino);
+    },
+    storicoDocSpecAtt(tipo) {
+      return (this.formAtt.documentiSpecifici ?? [])
+        .filter(d => d._cestino && d.tipo === tipo)
+        .sort((a, b) => (b._eliminato_il ?? '').localeCompare(a._eliminato_il ?? ''));
     },
 
     async onConformitaCEFile(ev) {
@@ -1116,31 +1155,51 @@ const _TEMPLATE_MA = `
       <!-- 5. Verifiche -->
       <details class="border border-slate-200 rounded-xl overflow-hidden">
         <summary class="px-4 py-3 bg-slate-50 cursor-pointer text-sm font-medium text-slate-700 hover:bg-slate-100 list-none flex items-center justify-between">
-          Verifiche <span class="text-xs font-normal text-slate-400 ml-1" x-text="(formAtt.verifiche??[]).length ? '(' + (formAtt.verifiche??[]).length + ')' : ''"></span>
+          Verifiche <span class="text-xs font-normal text-slate-400 ml-1" x-text="verificheAttiveAtt.length ? '(' + verificheAttiveAtt.length + ')' : ''"></span>
           <span class="text-slate-400 text-xs" aria-hidden="true">▾</span>
         </summary>
         <div class="p-4 space-y-3">
-          <template x-for="(v, idx) in (formAtt.verifiche??[])" :key="idx">
+          <template x-for="v in verificheAttiveAtt" :key="v.id">
             <div class="border border-slate-200 rounded-lg p-3 space-y-2 relative">
-              <button @click="rimuoviVerificaAtt(idx)" class="absolute top-2 right-2 text-red-400 hover:text-red-700 text-sm focus:outline-none" aria-label="Rimuovi">×</button>
+              <button @click="rimuoviVerificaAtt(v.id)" class="absolute top-2 right-2 text-red-400 hover:text-red-700 text-sm focus:outline-none" aria-label="Rimuovi">×</button>
               <div class="grid gap-2 sm:grid-cols-2">
                 <div>
                   <label class="block text-xs text-slate-500 mb-1">Tipo</label>
                   <select :value="tipoVerAttInLista(v.tipo)?v.tipo:(v.tipo?'ALTRO':'')"
-                          @change="formAtt.verifiche[idx].tipo=$event.target.value!=='ALTRO'?$event.target.value:'';formAtt={...formAtt}"
+                          @change="v.tipo=$event.target.value!=='ALTRO'?$event.target.value:'';formAtt={...formAtt}"
                           class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="">— Seleziona —</option>
                     <template x-for="t in _tipiVerAtt()" :key="t.valore"><option :value="t.valore" x-text="t.etichetta"></option></template>
                   </select>
-                  <input x-show="!tipoVerAttInLista(v.tipo)" type="text" :value="v.tipo" @input="formAtt.verifiche[idx].tipo=$event.target.value;formAtt={...formAtt}" placeholder="Tipo verifica" class="mt-1.5 w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <input x-show="!tipoVerAttInLista(v.tipo)" type="text" :value="v.tipo" @input="v.tipo=$event.target.value;formAtt={...formAtt}" placeholder="Tipo verifica" class="mt-1.5 w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
-                <div><label class="block text-xs text-slate-500 mb-1">Data eseguita</label><input type="date" :value="v.data??''" @input="formAtt.verifiche[idx].data=$event.target.value||null;formAtt={...formAtt}" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
-                <div><label class="block text-xs text-slate-500 mb-1">Prossima verifica</label><input type="date" :value="v.prossima??''" @input="formAtt.verifiche[idx].prossima=$event.target.value||null;formAtt={...formAtt}" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div><label class="block text-xs text-slate-500 mb-1">Data eseguita</label><input type="date" :value="v.data??''" @input="v.data=$event.target.value||null;formAtt={...formAtt}" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div><label class="block text-xs text-slate-500 mb-1">Prossima verifica</label><input type="date" :value="v.prossima??''" @input="v.prossima=$event.target.value||null;formAtt={...formAtt}" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
               </div>
               <label class="cursor-pointer text-xs text-blue-600 hover:text-blue-800">
-                <input type="file" accept=".pdf,.png,.jpg" class="sr-only" @change="onVerificaAttFile(idx,$event)">
-                <span x-text="v.filename ? '📎 ' + v.filename : '📎 Allega verbale'"></span>
+                <input type="file" accept=".pdf,.png,.jpg" class="sr-only" @change="onVerificaAttFile(v.id,$event)">
+                <span x-text="v.filename ? '↑ Sostituisci verbale' : '📎 Allega verbale'"></span>
               </label>
+              <!-- Storico: versioni precedenti di questa verifica (sola lettura) -->
+              <template x-if="storicoVerificaAtt(v.tipo).length > 0">
+                <details class="mt-1 text-xs">
+                  <summary class="cursor-pointer text-slate-400 hover:text-slate-600 select-none">
+                    Storico (<span x-text="storicoVerificaAtt(v.tipo).length"></span> vers. prec.)
+                  </summary>
+                  <ul class="mt-1 ml-1 border-l border-slate-100 pl-2 space-y-0.5">
+                    <template x-for="s in storicoVerificaAtt(v.tipo)" :key="(s._eliminato_il??'')+(s.filename??'')">
+                      <li class="flex items-center gap-2 text-slate-400">
+                        <span class="flex-shrink-0" x-text="UTILS.formatData(s._eliminato_il)"></span>
+                        <button x-show="s.base64" type="button" @click.stop="ALLEGATI.apriAllegato(s.base64, s.filename)"
+                                class="text-blue-500 hover:text-blue-700 truncate text-left focus:outline-none focus:ring-1 focus:ring-blue-400 rounded" :title="'Apri ' + s.filename">
+                          📎 <span x-text="s.filename"></span>
+                        </button>
+                        <span x-show="!s.base64" class="text-slate-300 cursor-not-allowed truncate" title="Documento non disponibile" x-text="s.filename ? '📎 ' + s.filename : '—'"></span>
+                      </li>
+                    </template>
+                  </ul>
+                </details>
+              </template>
             </div>
           </template>
           <button @click="aggiungiVerificaAtt()" type="button" class="text-sm text-blue-600 hover:text-blue-800 border border-blue-300 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">+ Aggiungi verifica</button>
@@ -1151,33 +1210,53 @@ const _TEMPLATE_MA = `
       <details class="border border-slate-200 rounded-xl overflow-hidden">
         <summary class="px-4 py-3 bg-slate-50 cursor-pointer text-sm font-medium text-slate-700 hover:bg-slate-100 list-none flex items-center justify-between">
           Documenti specifici (ponteggi / opere provvisionali)
-          <span class="text-xs font-normal text-slate-400 ml-1" x-text="(formAtt.documentiSpecifici??[]).length ? '(' + (formAtt.documentiSpecifici??[]).length + ')' : ''"></span>
+          <span class="text-xs font-normal text-slate-400 ml-1" x-text="docSpecAttiviAtt.length ? '(' + docSpecAttiviAtt.length + ')' : ''"></span>
           <span class="text-slate-400 text-xs" aria-hidden="true">▾</span>
         </summary>
         <div class="p-4 space-y-3">
           <p class="text-xs text-slate-400">🔴 = PiMUS e Autorizzazione ministeriale (scadenza critica)</p>
-          <template x-for="(d, idx) in (formAtt.documentiSpecifici??[])" :key="idx">
+          <template x-for="d in docSpecAttiviAtt" :key="d.id">
             <div class="border border-slate-200 rounded-lg p-3 space-y-2 relative">
-              <button @click="rimuoviDocSpecAtt(idx)" class="absolute top-2 right-2 text-red-400 hover:text-red-700 text-sm focus:outline-none" aria-label="Rimuovi">×</button>
+              <button @click="rimuoviDocSpecAtt(d.id)" class="absolute top-2 right-2 text-red-400 hover:text-red-700 text-sm focus:outline-none" aria-label="Rimuovi">×</button>
               <div class="grid gap-2 sm:grid-cols-2">
                 <div>
                   <label class="block text-xs text-slate-500 mb-1">Tipo documento</label>
-                  <select :value="d.tipo??''" @change="formAtt.documentiSpecifici[idx].tipo=$event.target.value;formAtt={...formAtt}" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <select :value="d.tipo??''" @change="d.tipo=$event.target.value;formAtt={...formAtt}" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="">— Seleziona —</option>
                     <template x-for="t in _tipiDocSpecAtt()" :key="t.valore"><option :value="t.valore" x-text="t.etichetta + (t.critico?' 🔴':'')"></option></template>
                   </select>
                 </div>
                 <div>
                   <label class="block text-xs text-slate-500 mb-1">Scadenza <span x-show="d.tipo==='PIMUS'||d.tipo==='AUTORIZZAZIONE_MINISTERIALE'" class="text-red-500">🔴</span></label>
-                  <input type="date" :value="d.scadenza??''" @input="formAtt.documentiSpecifici[idx].scadenza=$event.target.value||null;formAtt={...formAtt}"
+                  <input type="date" :value="d.scadenza??''" @input="d.scadenza=$event.target.value||null;formAtt={...formAtt}"
                          class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                          :class="d.scadenza && UTILS.giorniAllaScadenza(d.scadenza)<0?'border-red-400 bg-red-50':''">
                 </div>
               </div>
               <label class="cursor-pointer text-xs text-blue-600 hover:text-blue-800">
-                <input type="file" accept=".pdf,.png,.jpg" class="sr-only" @change="onDocSpecAttFile(idx,$event)">
-                <span x-text="d.filename ? '📎 ' + d.filename : '📎 Allega documento'"></span>
+                <input type="file" accept=".pdf,.png,.jpg" class="sr-only" @change="onDocSpecAttFile(d.id,$event)">
+                <span x-text="d.filename ? '↑ Sostituisci documento' : '📎 Allega documento'"></span>
               </label>
+              <!-- Storico: versioni precedenti di questo documento specifico (sola lettura) -->
+              <template x-if="storicoDocSpecAtt(d.tipo).length > 0">
+                <details class="mt-1 text-xs">
+                  <summary class="cursor-pointer text-slate-400 hover:text-slate-600 select-none">
+                    Storico (<span x-text="storicoDocSpecAtt(d.tipo).length"></span> vers. prec.)
+                  </summary>
+                  <ul class="mt-1 ml-1 border-l border-slate-100 pl-2 space-y-0.5">
+                    <template x-for="s in storicoDocSpecAtt(d.tipo)" :key="(s._eliminato_il??'')+(s.filename??'')">
+                      <li class="flex items-center gap-2 text-slate-400">
+                        <span class="flex-shrink-0" x-text="UTILS.formatData(s._eliminato_il)"></span>
+                        <button x-show="s.base64" type="button" @click.stop="ALLEGATI.apriAllegato(s.base64, s.filename)"
+                                class="text-blue-500 hover:text-blue-700 truncate text-left focus:outline-none focus:ring-1 focus:ring-blue-400 rounded" :title="'Apri ' + s.filename">
+                          📎 <span x-text="s.filename"></span>
+                        </button>
+                        <span x-show="!s.base64" class="text-slate-300 cursor-not-allowed truncate" title="Documento non disponibile" x-text="s.filename ? '📎 ' + s.filename : '—'"></span>
+                      </li>
+                    </template>
+                  </ul>
+                </details>
+              </template>
             </div>
           </template>
           <button @click="aggiungiDocSpecAtt()" type="button" class="text-sm text-blue-600 hover:text-blue-800 border border-blue-300 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">+ Aggiungi documento</button>
