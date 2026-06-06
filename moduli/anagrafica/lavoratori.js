@@ -128,6 +128,10 @@ function ListaLavoratori() {
       if (!lav) return;
       this.formDati = JSON.parse(JSON.stringify(lav));
       this.formDati.abilitazioni           ??= [];
+      // Assegna id alle abilitazioni pre-esistenti che ne sono prive (retrocompatibilità)
+      for (const ab of this.formDati.abilitazioni) {
+        if (!ab.id) ab.id = UTILS.generaId('abi');
+      }
       this.formDati.visitaMedica           ??= {};
       this.formDati.attestatoFormazione    ??= {};
       this.formDati.tesseraRiconoscimento  ??= { presente: false };
@@ -195,24 +199,61 @@ function ListaLavoratori() {
 
     aggiungiAbilitazione() {
       if (!this.formDati.abilitazioni) this.formDati.abilitazioni = [];
-      this.formDati.abilitazioni.push({ tipo: '', numero: '', scadenza: null, filename: null, base64: null });
+      this.formDati.abilitazioni.push({
+        id: UTILS.generaId('abi'),
+        tipo: '', numero: '', scadenza: null, filename: null, base64: null,
+      });
       this.formDati = { ...this.formDati };
       this.modificatoDopoCaricamento = true;
     },
 
-    rimuoviAbilitazione(idx) {
-      this.formDati.abilitazioni.splice(idx, 1);
+    // Soft-delete: il vecchio record resta tracciabile nello storico (stesso pattern documenti[] imprese)
+    rimuoviAbilitazione(id) {
+      const idx = (this.formDati.abilitazioni ?? []).findIndex(a => a.id === id && !a._cestino);
+      if (idx < 0) return;
+      this.formDati.abilitazioni[idx] = {
+        ...this.formDati.abilitazioni[idx],
+        _cestino: true,
+        _eliminato_il: new Date().toISOString(),
+      };
       this.formDati = { ...this.formDati };
       this.modificatoDopoCaricamento = true;
     },
 
-    async onAbilitazioneFile(idx, event) {
+    // Sostituzione: soft-delete del precedente + push del nuovo (conserva tipo/numero/scadenza)
+    async onAbilitazioneFile(id, event) {
       const file = event.target.files?.[0];
       if (!file) return;
       const base64 = await _leggiFileBase64Lav(file);
-      this.formDati.abilitazioni[idx] = { ...this.formDati.abilitazioni[idx], filename: file.name, base64 };
+      const old    = (this.formDati.abilitazioni ?? []).find(a => a.id === id && !a._cestino);
+      if (!old) return;
+      const oldIdx = this.formDati.abilitazioni.indexOf(old);
+      this.formDati.abilitazioni[oldIdx] = {
+        ...old,
+        _cestino: true,
+        _eliminato_il: new Date().toISOString(),
+      };
+      this.formDati.abilitazioni.push({
+        id:       UTILS.generaId('abi'),
+        tipo:     old.tipo,
+        numero:   old.numero,
+        scadenza: old.scadenza,
+        filename: file.name,
+        base64,
+      });
       this.formDati = { ...this.formDati };
       this.modificatoDopoCaricamento = true;
+    },
+
+    // ── Abilitazioni: getter e storico ────────────────────────────────────
+    get abilitazioniAttive() {
+      return (this.formDati.abilitazioni ?? []).filter(a => !a._cestino);
+    },
+
+    storicoAbilitazione(tipo) {
+      return (this.formDati.abilitazioni ?? [])
+        .filter(a => a._cestino && a.tipo === tipo)
+        .sort((a, b) => (b._eliminato_il ?? '').localeCompare(a._eliminato_il ?? ''));
     },
 
     // Upload generico (visita medica, formazione)
@@ -795,9 +836,9 @@ const _TEMPLATE_LAVORATORI = `
             🔴 = critica (Accordo Stato-Regioni 22/02/2012) — operatore non può condurre quel mezzo se scaduta.
           </p>
 
-          <template x-for="(ab, idx) in (formDati.abilitazioni ?? [])" :key="idx">
+          <template x-for="ab in abilitazioniAttive" :key="ab.id">
             <div class="border border-slate-200 rounded-lg p-3 space-y-2 relative">
-              <button @click="rimuoviAbilitazione(idx)" type="button"
+              <button @click="rimuoviAbilitazione(ab.id)" type="button"
                       class="absolute top-2 right-2 text-red-400 hover:text-red-700
                              text-sm focus:outline-none" aria-label="Rimuovi abilitazione">×</button>
 
@@ -807,7 +848,7 @@ const _TEMPLATE_LAVORATORI = `
                   <label class="block text-xs text-slate-500 mb-1">Tipo</label>
                   <select
                     :value="tipoInLista(ab.tipo) ? ab.tipo : (ab.tipo ? 'ALTRO' : '')"
-                    @change="if($event.target.value !== 'ALTRO') { formDati.abilitazioni[idx].tipo = $event.target.value } else { formDati.abilitazioni[idx].tipo = '' }; formDati={...formDati}"
+                    @change="ab.tipo = $event.target.value !== 'ALTRO' ? $event.target.value : ''; formDati={...formDati}"
                     class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs
                            focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="">— Seleziona —</option>
@@ -820,7 +861,7 @@ const _TEMPLATE_LAVORATORI = `
                   <input x-show="!tipoInLista(ab.tipo)"
                          type="text"
                          :value="ab.tipo"
-                         @input="formDati.abilitazioni[idx].tipo = $event.target.value; formDati={...formDati}"
+                         @input="ab.tipo = $event.target.value; formDati={...formDati}"
                          placeholder="Descrivi l'abilitazione"
                          class="mt-1.5 w-full border border-slate-300 rounded px-2 py-1.5 text-xs
                                 focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -829,7 +870,7 @@ const _TEMPLATE_LAVORATORI = `
                   <label class="block text-xs text-slate-500 mb-1">N. attestato</label>
                   <input type="text"
                          :value="ab.numero ?? ''"
-                         @input="formDati.abilitazioni[idx].numero = $event.target.value; formDati={...formDati}"
+                         @input="ab.numero = $event.target.value; formDati={...formDati}"
                          class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs
                                 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
@@ -844,7 +885,7 @@ const _TEMPLATE_LAVORATORI = `
                   </label>
                   <input type="date"
                          :value="ab.scadenza ?? ''"
-                         @input="formDati.abilitazioni[idx].scadenza = $event.target.value || null; formDati={...formDati}"
+                         @input="ab.scadenza = $event.target.value || null; formDati={...formDati}"
                          class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs
                                 focus:outline-none focus:ring-2 focus:ring-blue-500"
                          :class="ab.scadenza && UTILS.giorniAllaScadenza(ab.scadenza) < 0 ? 'border-red-400 bg-red-50' : ''">
@@ -869,14 +910,41 @@ const _TEMPLATE_LAVORATORI = `
                           class="text-xs text-slate-500 hover:text-blue-600 transition-colors
                                  focus:outline-none focus:ring-1 focus:ring-slate-400 rounded px-1"
                           title="Scarica" :aria-label="'Scarica ' + (ab.filename ?? 'abilitazione')">⬇</button>
-                  <!-- upload -->
+                  <!-- upload: soft-delete del precedente + push del nuovo -->
                   <label class="cursor-pointer text-xs text-blue-600 hover:text-blue-800">
                     <input type="file" accept=".pdf,.png,.jpg" class="sr-only"
-                           @change="onAbilitazioneFile(idx, $event)">
+                           @change="onAbilitazioneFile(ab.id, $event)">
                     <span x-text="ab.filename ? '↑ Sostituisci' : '📎 Allega'"></span>
                   </label>
                 </div>
               </div>
+
+              <!-- Storico: versioni precedenti di questa abilitazione (sola lettura) -->
+              <template x-if="storicoAbilitazione(ab.tipo).length > 0">
+                <details class="mt-1 text-xs">
+                  <summary class="cursor-pointer text-slate-400 hover:text-slate-600 select-none">
+                    Storico (<span x-text="storicoAbilitazione(ab.tipo).length"></span> vers. prec.)
+                  </summary>
+                  <ul class="mt-1 ml-1 border-l border-slate-100 pl-2 space-y-0.5">
+                    <template x-for="v in storicoAbilitazione(ab.tipo)" :key="(v._eliminato_il??'')+(v.filename??'')">
+                      <li class="flex items-center gap-2 text-slate-400">
+                        <span class="flex-shrink-0" x-text="UTILS.formatData(v._eliminato_il)"></span>
+                        <button x-show="v.base64" type="button"
+                                @click.stop="ALLEGATI.apriAllegato(v.base64, v.filename)"
+                                class="text-blue-500 hover:text-blue-700 truncate text-left
+                                       focus:outline-none focus:ring-1 focus:ring-blue-400 rounded"
+                                :title="'Apri ' + v.filename">
+                          📎 <span x-text="v.filename"></span>
+                        </button>
+                        <span x-show="!v.base64"
+                              class="text-slate-300 cursor-not-allowed truncate"
+                              title="Documento non disponibile"
+                              x-text="v.filename ? '📎 ' + v.filename : '—'"></span>
+                      </li>
+                    </template>
+                  </ul>
+                </details>
+              </template>
             </div>
           </template>
 
