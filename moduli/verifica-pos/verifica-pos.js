@@ -477,6 +477,10 @@ function VerificaPos() {
         };
         this.corrente.aggiornato_il = new Date().toISOString();
         await FILESYSTEM.scriviJson(prtDir, `${numEsc}.json`, this.corrente);
+
+        // Hook diario — fire-and-forget: la protocollazione non deve mai fallire per questo
+        _hookDiarioVPProtocollata(this.corrente, cantId).catch(e => console.warn('[diario] hook VP:', e));
+
         try {
           const bDir = await FILESYSTEM.navigaPercorso(cantDir, ['03_Verifiche-POS', 'Bozze']);
           const bz   = await FILESYSTEM.leggiJson(bDir, `${this.corrente.id}.json`);
@@ -628,6 +632,35 @@ async function generaCorpoHtmlVerificaPos(d) {
   );
 
   return p.join('\n');
+}
+
+// ── Hook Diario CSE — best-effort (non blocca mai la protocollazione) ─────────
+
+async function _hookDiarioVPProtocollata(corrente, cantiere_id) {
+  if (typeof DIARIO_SERVICE === 'undefined') return;
+  const numero   = corrente.numero_progressivo ?? '';
+  const dataProt = corrente.protocollo?.data_protocollo
+                   ? UTILS.formatData(corrente.protocollo.data_protocollo) : '';
+  const impId    = corrente.impresa_verificata?.impresa_id ?? corrente.impresa_id ?? '';
+  const impNome  = impId ? (_nomeImpresaGenVP(impId) || impId) : '';
+  const esitoMap = { idoneo: 'idonea', idoneo_integrazioni: 'idonea con integrazioni', non_idoneo: 'non idonea' };
+  const esito    = esitoMap[corrente.esito] ?? '';
+  const titolo   = impNome
+    ? `Verifica POS impresa ${impNome} protocollata${numero ? ': n. ' + numero : ''}`
+    : `Verifica POS protocollata${numero ? ': n. ' + numero : ''}`;
+  const desc     = [
+    impNome  ? `Impresa: ${impNome}`          : null,
+    esito    ? `Esito: ${esito}`              : null,
+    dataProt ? `Data protocollo: ${dataProt}` : null,
+  ].filter(Boolean).join('\n');
+  await DIARIO_SERVICE.creaVoceAuto({
+    cantiere_id,
+    tipo:        'VERIFICA_POS',
+    titolo,
+    descrizione: desc,
+    soggetti:    impNome ? [impNome] : [],
+    riferimento: corrente.id,
+  });
 }
 
 function _nomeImpresaGenVP(id) {
