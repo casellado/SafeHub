@@ -310,6 +310,143 @@ function _periodiDaFiltro(filtro) {
   return [build(oggi)];
 }
 
+/** Periodi degli ultimi 5 anni (per "esporta tutto"). */
+function _periodiTutto() {
+  const anno = new Date().getFullYear();
+  const out  = [];
+  for (let dy = 0; dy <= 4; dy++) {
+    for (let m = 1; m <= 12; m++) {
+      out.push({ anno: String(anno - dy), mese: String(m).padStart(2, '0') });
+    }
+  }
+  return out;
+}
+
+/** Periodi compresi nell'intervallo date ISO (da, a: 'YYYY-MM-DD'). */
+function _periodiDaRange(da, a) {
+  if (!da || !a) return [];
+  const cur = new Date(da + 'T12:00:00Z');
+  const end = new Date(a  + 'T12:00:00Z');
+  const out = [];
+  while (cur <= end) {
+    out.push({ anno: String(cur.getFullYear()), mese: String(cur.getMonth() + 1).padStart(2, '0') });
+    cur.setUTCMonth(cur.getUTCMonth() + 1);
+  }
+  return out;
+}
+
+/** Etichetta leggibile del tipo voce per il documento esportato. */
+const _tipoLabelDiario = (tipo) =>
+  (_TIPI_DIARIO.find(t => t.valore === tipo) ?? { etichetta: tipo ?? 'Altro' }).etichetta;
+
+/** Intestazione documento (header del template Word). */
+function _intestazioneDiario() {
+  const m = IMPOSTAZIONI_SERVICE.modulo('diario-cse');
+  return {
+    modulo_titolo:   m.titolo   || "Diario del Coordinatore per l'Esecuzione",
+    modulo_codice:   m.codice   || '',
+    modulo_versione: m.versione || '',
+    logo_aziendale:  IMPOSTAZIONI_SERVICE.logo()?.png_base64 ?? null,
+  };
+}
+
+/** Crea un link di download temporaneo e lo attiva. */
+function _scaricaBlob(blob, nome) {
+  const url = URL.createObjectURL(blob);
+  const a   = document.createElement('a');
+  a.href = url; a.download = nome; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+/**
+ * Genera il corpo HTML del diario da passare a M6.
+ * Pattern identico agli altri moduli (p[] + join): solo tag del sottoinsieme M6.
+ * NON incorpora i PDF allegati: elenca i nomi file (attestazione dell'esistenza).
+ *
+ * @param {object[]} voci     - array già filtrato (ordine qualsiasi — riordinato internamente)
+ * @param {{ lotto, cantiere_id, periodLabel }} opzioni
+ */
+async function generaCorpoHtmlDiario(voci, { lotto = {}, cantiere_id = '', periodLabel = '' }) {
+  const esc = (s) => UTILS.escapeHtml(s ?? '');
+  const p   = [];
+
+  const cse    = IMPOSTAZIONI_SERVICE.cse();
+  const firm   = IMPOSTAZIONI_SERVICE.firma();
+  const cseImg = await _scalafirma(firm?.firma_png_base64 ?? null);
+
+  // ── 1. Intestazione documento ────────────────────────────────────────────────
+  const codCant  = esc(cantiere_id || lotto.id || '');
+  const nomeCant = esc(lotto.nome ?? '');
+  const commit   = esc(lotto.committente ?? '');
+
+  p.push(`<p data-line="exact280"><strong>Cantiere:</strong> ${codCant}${nomeCant ? ' — ' + nomeCant : ''}</p>`);
+  if (commit) p.push(`<p data-line="exact280"><strong>Committente:</strong> ${commit}</p>`);
+  p.push(`<p data-line="exact280"><strong>Periodo:</strong> ${esc(periodLabel)}</p>`);
+  p.push(`<p data-line="exact280"><strong>Generato il:</strong> ${esc(UTILS.formatData(new Date().toISOString()))}</p>`);
+  p.push(`<p data-after="200">&nbsp;</p>`);
+
+  // ── 2. Voci in ordine cronologico ascendente ──────────────────────────────────
+  const ordinate = [...voci].sort((a, b) =>
+    (a.data_ora ?? a.creato_il ?? '').localeCompare(b.data_ora ?? b.creato_il ?? ''));
+
+  for (const v of ordinate) {
+    const dataFmt  = esc(UTILS.formatDataOra(v.data_ora));
+    const tipoLbl  = esc(_tipoLabelDiario(v.tipo));
+    const isAuto   = v.origine === 'AUTO';
+
+    // Intestazione voce: data — tipo (+ nota automatica)
+    p.push(`<h3>${dataFmt} — ${tipoLbl}${isAuto ? ' *(automatica)*' : ''}</h3>`);
+
+    // Titolo
+    if (v.titolo?.trim()) p.push(`<p><strong>${esc(v.titolo)}</strong></p>`);
+
+    // Descrizione (ritorni a capo → <br>)
+    if (v.descrizione?.trim()) {
+      const righe = v.descrizione.split('\n').map(r => esc(r)).join('<br>');
+      p.push(`<p data-line="15">${righe}</p>`);
+    }
+
+    // Soggetti
+    if ((v.soggetti ?? []).length > 0) {
+      p.push(`<p><em>Soggetti: ${v.soggetti.map(s => esc(s)).join(', ')}</em></p>`);
+    }
+
+    // Allegati: solo nomi file (NON il contenuto)
+    const allegati = (v.allegati ?? []).filter(a => a.filename);
+    if (allegati.length > 0) {
+      p.push(`<p><em>Allegati: ${allegati.map(a => esc(a.filename)).join(', ')}</em></p>`);
+    }
+
+    // Firma voce (se sigillata)
+    if (v.stato_voce === 'firmata' && v.firma) {
+      const fNome = esc(v.firma.firmato_da ?? '');
+      const fData = esc(UTILS.formatData(v.firma.firmato_il));
+      p.push(`<p><em>Firmata da ${fNome} il ${fData}</em></p>`);
+      if (v.firma.firma_png_base64) {
+        const vImg = await _scalafirma(v.firma.firma_png_base64);
+        if (vImg) p.push(`<p><img src="${vImg}" alt="firma voce"></p>`);
+      }
+    }
+
+    p.push(`<p data-after="120">&nbsp;</p>`);  // stacco tra voci
+  }
+
+  if (ordinate.length === 0) {
+    p.push(`<p><em>Nessuna annotazione nel periodo selezionato.</em></p>`);
+  }
+
+  // ── 3. Firma CSE in calce ──────────────────────────────────────────────────
+  const pr      = 'data-indent="firma" data-align="center" style="padding-left:52%;text-align:center"';
+  const cseNome = esc(cse?.nome_cognome ?? '');
+  p.push(`<p data-before="300">&nbsp;</p>`);
+  p.push(`<p ${pr}>Il Coordinatore per l'Esecuzione</p>`);
+  if (cseNome) p.push(`<p ${pr}>${cseNome}</p>`);
+  if (cseImg)  p.push(`<p ${pr}><img src="${cseImg}" alt="firma CSE"></p>`);
+  p.push(`<p ${pr}>${esc(UTILS.formatData(new Date().toISOString()))}</p>`);
+
+  return p.join('\n');
+}
+
 // ── Componente Alpine ─────────────────────────────────────────────────────────
 
 function DiarioCse() {
@@ -334,6 +471,12 @@ function DiarioCse() {
     // Dettaglio sola lettura (voci firmate e AUTO)
     dettaglioAperto: false,
     dettaglioVoce:   null,
+
+    // Export DOCX (Step 3)
+    exportando:        false,
+    exportPeriodoForm: false,
+    exportDa:          '',
+    exportA:           '',
 
     // Firma
     firmaModal:      false,   // mostra il pannello firma
@@ -456,6 +599,86 @@ function DiarioCse() {
     chiudiDettaglio() {
       this.dettaglioAperto = false;
       this.dettaglioVoce   = null;
+    },
+
+    // ── Export DOCX ───────────────────────────────────────────────────────────
+
+    async esportaTutto() {
+      if (!this._cantiereId) return;
+      this.exportando = true;
+      try {
+        const voci  = await DIARIO_SERVICE.leggiVoci(this._cantiereId, _periodiTutto());
+        const corpo = await generaCorpoHtmlDiario(voci, {
+          lotto:       ANAGRAFICA_SERVICE.dati?.lotto ?? {},
+          cantiere_id: this._cantiereId,
+          periodLabel: 'Diario completo',
+        });
+        const out = await MOTORE_DOCX.generaDocumento({
+          tipo: 'diario-cse', header: _intestazioneDiario(),
+          corpo_html: corpo, formati: { docx: true },
+        });
+        _scaricaBlob(out.docxBlob, `diario-cse-${this._cantiereId}-completo.docx`);
+        NOTIFICHE.successo('Esportato', 'DOCX diario completo scaricato.');
+      } catch (err) {
+        ERRORI.gestisciErrore('diario-cse/esporta-tutto', err);
+      } finally { this.exportando = false; }
+    },
+
+    async esportaPeriodo() {
+      if (!this._cantiereId || !this.exportDa || !this.exportA) {
+        NOTIFICHE.attenzione('Export', 'Seleziona data inizio e data fine.');
+        return;
+      }
+      if (this.exportDa > this.exportA) {
+        NOTIFICHE.attenzione('Export', 'La data inizio deve essere prima della data fine.');
+        return;
+      }
+      this.exportPeriodoForm = false;
+      this.exportando = true;
+      try {
+        const periodi = _periodiDaRange(this.exportDa, this.exportA);
+        const tutte   = await DIARIO_SERVICE.leggiVoci(this._cantiereId, periodi);
+        // Raffina per data esatta (leggiVoci carica il mese intero)
+        const daStr = this.exportDa + 'T00:00:00.000Z';
+        const aStr  = this.exportA  + 'T23:59:59.999Z';
+        const voci  = tutte.filter(v => {
+          const dt = v.data_ora ?? v.creato_il ?? '';
+          return dt >= daStr && dt <= aStr;
+        });
+        const label = `dal ${UTILS.formatData(this.exportDa + 'T12:00:00Z')} al ${UTILS.formatData(this.exportA + 'T12:00:00Z')}`;
+        const corpo = await generaCorpoHtmlDiario(voci, {
+          lotto:       ANAGRAFICA_SERVICE.dati?.lotto ?? {},
+          cantiere_id: this._cantiereId,
+          periodLabel: label,
+        });
+        const out = await MOTORE_DOCX.generaDocumento({
+          tipo: 'diario-cse', header: _intestazioneDiario(),
+          corpo_html: corpo, formati: { docx: true },
+        });
+        _scaricaBlob(out.docxBlob, `diario-cse-${this._cantiereId}-${this.exportDa}_${this.exportA}.docx`);
+        NOTIFICHE.successo('Esportato', `DOCX periodo scaricato (${voci.length} voci).`);
+      } catch (err) {
+        ERRORI.gestisciErrore('diario-cse/esporta-periodo', err);
+      } finally { this.exportando = false; }
+    },
+
+    async esportaVoce(voce) {
+      this.exportando = true;
+      try {
+        const corpo = await generaCorpoHtmlDiario([voce], {
+          lotto:       ANAGRAFICA_SERVICE.dati?.lotto ?? {},
+          cantiere_id: this._cantiereId,
+          periodLabel: UTILS.formatData(voce.data_ora),
+        });
+        const out = await MOTORE_DOCX.generaDocumento({
+          tipo: 'diario-cse', header: _intestazioneDiario(),
+          corpo_html: corpo, formati: { docx: true },
+        });
+        _scaricaBlob(out.docxBlob, `diario-voce-${this._cantiereId}-${voce.id.slice(0, 8)}.docx`);
+        NOTIFICHE.successo('Esportato', 'DOCX voce scaricato.');
+      } catch (err) {
+        ERRORI.gestisciErrore('diario-cse/esporta-voce', err);
+      } finally { this.exportando = false; }
     },
 
     _validaForm() {
@@ -729,6 +952,50 @@ const _TEMPLATE_DIARIO = `
     <p class="text-slate-500">Seleziona un cantiere per accedere al Diario CSE.</p>
   </div>
 
+  <!-- === BARRA EXPORT === -->
+  <div x-show="$store.cantiere.id" class="mb-4">
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="text-xs text-slate-400 font-medium">Esporta:</span>
+      <button @click="esportaTutto()" :disabled="exportando"
+              class="text-xs bg-white border border-slate-300 text-slate-600 hover:bg-slate-50
+                     disabled:opacity-50 px-3 py-1.5 rounded-lg transition-colors
+                     focus:outline-none focus:ring-2 focus:ring-slate-400">
+        <span x-show="!exportando">📥 Tutto il diario</span>
+        <span x-show="exportando">⏳ Generazione…</span>
+      </button>
+      <button @click="exportPeriodoForm = !exportPeriodoForm" :disabled="exportando"
+              :class="exportPeriodoForm ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-white border-slate-300 text-slate-600'"
+              class="text-xs border hover:bg-slate-50 disabled:opacity-50 px-3 py-1.5
+                     rounded-lg transition-colors
+                     focus:outline-none focus:ring-2 focus:ring-blue-400">
+        📅 Periodo…
+      </button>
+    </div>
+    <!-- Form scelta periodo (inline) -->
+    <div x-show="exportPeriodoForm" class="mt-2 flex flex-wrap items-center gap-2 p-3
+                                           bg-blue-50 border border-blue-200 rounded-lg">
+      <label class="text-xs text-slate-600">Dal
+        <input type="date" x-model="exportDa"
+               class="ml-1 border border-slate-300 rounded px-2 py-1 text-xs
+                      focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </label>
+      <label class="text-xs text-slate-600">Al
+        <input type="date" x-model="exportA"
+               class="ml-1 border border-slate-300 rounded px-2 py-1 text-xs
+                      focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </label>
+      <button @click="esportaPeriodo()" :disabled="exportando"
+              class="text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white
+                     px-3 py-1.5 rounded-lg transition-colors
+                     focus:outline-none focus:ring-2 focus:ring-blue-500">
+        📥 Genera DOCX
+      </button>
+      <button @click="exportPeriodoForm = false"
+              class="text-xs text-slate-400 hover:text-slate-600 px-2 py-1 rounded
+                     focus:outline-none focus:ring-1 focus:ring-slate-400">✕</button>
+    </div>
+  </div>
+
   <div x-show="$store.cantiere.id">
 
     <!-- === FILTRI PERIODO === -->
@@ -873,6 +1140,12 @@ const _TEMPLATE_DIARIO = `
                                rounded-lg hover:bg-red-50 transition-colors
                                focus:outline-none focus:ring-2 focus:ring-red-400"
                         title="Sposta nel cestino">🗑</button>
+                <!-- Esporta voce singola -->
+                <button @click="esportaVoce(voce)" :disabled="exportando"
+                        class="text-xs text-slate-400 hover:text-slate-600 px-2 py-1
+                               rounded-lg hover:bg-slate-50 disabled:opacity-40 transition-colors
+                               focus:outline-none focus:ring-2 focus:ring-slate-400"
+                        title="Esporta questa voce in DOCX">📥</button>
               </div>
             </div>
 
