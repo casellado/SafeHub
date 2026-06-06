@@ -206,13 +206,14 @@ const IDB = (() => {
   };
 
   // Cartelle documento monitorate da rigeneraIndiceDocumenti.
-  // Solo i moduli implementati; le sottocartelle determinano lo stato del record.
+  // Per i moduli Flusso B le sottocartelle determinano lo stato del record.
+  // Per le NC (leggiStatoDaCampo: true) lo stato si legge dal campo stato_risoluzione nel JSON.
   const _CARTELLE_DOC = [
     { folder: '02_Verbali-Riunione',         subs: ['Bozze', 'Protocollati'],              tipo: 'verbale-riunione' },
     { folder: '03_Verifiche-POS',            subs: ['Bozze', 'Protocollati'],              tipo: 'verifica-pos' },
     { folder: '04_Proposte-Sospensione-CSE', subs: ['Bozze', 'Protocollati'],              tipo: 'proposta-sospensione' },
     { folder: '05_Disposizioni-RL',          subs: ['Bozze', 'Protocollati'],              tipo: 'disposizione-rl' },
-    { folder: '05_Non-Conformita',           subs: ['Aperte', 'In-Risoluzione', 'Chiuse'], tipo: 'non-conformita' },
+    { folder: '05_Non-Conformita',           subs: ['Aperte', 'In-Risoluzione', 'Chiuse'], tipo: 'non-conformita', leggiStatoDaCampo: true },
     { folder: '07_Verifiche-ITP',            subs: ['Bozze', 'Protocollati'],              tipo: 'verifica-itp' },
   ];
   const _STATO_DA_SUB = {
@@ -227,8 +228,10 @@ const IDB = (() => {
    * Ri-scansiona SafeHub-CSE-Lavori/ e ricostruisce documenti_indice.
    *
    * Complementare a rigeneraIndice(): gestisce la parte documenti.
-   * Opera solo su listing di cartelle (nessuna lettura del contenuto JSON):
-   * veloce anche con molti documenti; data_documento non è disponibile senza lettura.
+   * Per i moduli Flusso B opera solo su listing di cartelle (veloce):
+   * lo stato si deduce dalla sottocartella (Bozze→BOZZA, Protocollati→PROTOCOLLATO).
+   * Per le NC (leggiStatoDaCampo: true) legge il JSON per ottenere stato_risoluzione
+   * dal campo, salta i soft-deleted, e deduplicazione avviene naturalmente per path_file.
    *
    * Chiamato in background dopo il boot e in primo piano da "Riscansiona cartella".
    *
@@ -240,7 +243,7 @@ const IDB = (() => {
     for await (const [nome, cantHandle] of rootHandle.entries()) {
       if (cantHandle.kind !== 'directory' || nome.startsWith('_') || nome.startsWith('.')) continue;
 
-      for (const { folder, subs, tipo } of _CARTELLE_DOC) {
+      for (const { folder, subs, tipo, leggiStatoDaCampo } of _CARTELLE_DOC) {
         let folderDir;
         try {
           folderDir = await cantHandle.getDirectoryHandle(folder, { create: false });
@@ -255,12 +258,23 @@ const IDB = (() => {
           for await (const [fn, fh] of subDir.entries()) {
             if (fh.kind !== 'file' || !fn.endsWith('.json')) continue;
             const path_file = `${nome}/${folder}/${sub}/${fn}`;
+
+            let stato = _STATO_DA_SUB[sub] ?? sub;
+            if (leggiStatoDaCampo) {
+              // NC: lo stato viene dal campo stato_risoluzione nel JSON
+              try {
+                const parsed = JSON.parse(await (await fh.getFile()).text());
+                if (parsed._cestino) continue;          // salta i soft-deleted
+                stato = parsed.stato_risoluzione ?? stato;
+              } catch { continue; }                     // salta file corrotto
+            }
+
             await idbPut('documenti_indice', {
               id_documento:   path_file,
               cantiere_id:    nome,
               tipo_documento: tipo,
-              stato:          _STATO_DA_SUB[sub] ?? sub,
-              data_documento: null,   // senza leggere il file; data disponibile nel JSON
+              stato,
+              data_documento: null,   // senza parsing extra; disponibile nel JSON
               path_file,
             });
           }

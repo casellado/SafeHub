@@ -1,36 +1,33 @@
 /**
  * non-conformita-service.js — Motore dati M14: Non Conformità.
  *
- * Record puro (nessun DOCX): vive come file JSON in
- *   05_Non-Conformita/<sottocartella-stato>/<uuid>.json
+ * COLLOCAZIONE FISSA: ogni NC vive in
+ *   05_Non-Conformita/Aperte/<uuid>.json
+ * e non si sposta mai, indipendentemente dallo stato_risoluzione.
  *
- * DUE ASSI DI STATO INDIPENDENTI sullo stesso record:
- *   stato_doc        (campo JSON): 'BOZZA' | 'FINALIZZATO_DA_PROTOCOLLARE' | 'PROTOCOLLATO'
- *   stato_risoluzione (cartella):  'APERTA' | 'IN_RISOLUZIONE' | 'CHIUSA'
+ * DUE ASSI DI STATO come campi nel record (nessuno determina la cartella):
+ *   stato_doc        : 'BOZZA' | 'FINALIZZATO_DA_PROTOCOLLARE' | 'PROTOCOLLATO'
+ *   stato_risoluzione: 'APERTA' | 'IN_RISOLUZIONE' | 'CHIUSA'
  *
- * stato_risoluzione è l'asse primario: determina la sottocartella fisica.
- * stato_doc è l'asse secondario: campo nel JSON, default 'BOZZA'.
+ * cambiaStatoRisoluzione aggiorna solo il campo e riscrive il file dov'è.
+ * Nessuno spostamento di file. Pattern identico a aggiornaDatiLotto per i cantieri.
  *
- * Spostamento file al cambio stato_risoluzione — ordine critico anti-perdita:
- *   STEP 1 — scrivi nella nuova cartella
- *   STEP 2 — solo poi soft-delete nella vecchia
- * Se STEP 1 fallisce, la NC è intatta nella vecchia posizione.
- * Se STEP 2 fallisce, la NC è duplicata (recuperabile) ma mai persa.
+ * leggiNC scansiona tutte e 3 le sottocartelle (tolleranza per dati legacy v1
+ * che usavano lo spostamento file). Deduplicazione per id: vince la versione
+ * con aggiornato_il più recente.
  *
  * Il campo documenti_collegati: [] è riservato al futuro collegamento ODS.
- * Non implementato ora — solo il campo nel record.
  *
  * Dipende da: UTILS, FILESYSTEM (già caricati da shared/).
  */
 
 const NC_SERVICE = (() => {
 
-  // Mapping stato_risoluzione → nome sottocartella fisica (già create dallo scaffolding)
-  const _STATO_A_FOLDER = {
-    APERTA:         'Aperte',
-    IN_RISOLUZIONE: 'In-Risoluzione',
-    CHIUSA:         'Chiuse',
-  };
+  // Sottocartella fissa dove nascono e vivono tutte le NC
+  const _FOLDER_NC = 'Aperte';
+
+  // Usato solo da leggiNC per tolleranza dati legacy v1 (che spostava i file)
+  const _TUTTE_FOLDERS = ['Aperte', 'In-Risoluzione', 'Chiuse'];
 
   // ── Schema ──────────────────────────────────────────────────────────────────
 
@@ -50,9 +47,9 @@ const NC_SERVICE = (() => {
     data_rilevazione:     UTILS.oggi(),
     scadenza_risoluzione: '',         // ISO date o stringa vuota
     stato_doc:            'BOZZA',    // asse secondario, per coerenza/futuro
-    stato_risoluzione:    'APERTA',   // asse primario — determina la sottocartella
+    stato_risoluzione:    'APERTA',   // asse primario — campo nel record, non cartella
     origine:              'manuale',  // 'manuale' | 'da_verbale_sopralluogo'
-    verbale_origine_id:   '',         // valorizzato se origine === 'da_verbale_sopralluogo'
+    verbale_origine_id:   '',
     documenti_collegati:  [],         // slot ODS futuro — non implementare ora
     note:                 '',
     creato_il:            new Date().toISOString(),
@@ -62,19 +59,16 @@ const NC_SERVICE = (() => {
   // ── Utility interna ──────────────────────────────────────────────────────────
 
   /**
-   * Restituisce il handle della sottocartella corrispondente a stato_risoluzione.
-   * @param {string} cantiereId
-   * @param {string} statoRisoluzione  'APERTA' | 'IN_RISOLUZIONE' | 'CHIUSA'
-   * @param {boolean} [crea=false]     true per auto-creare se mancante
+   * Restituisce il handle della cartella fissa delle NC.
+   * @param {string}  cantiereId
+   * @param {boolean} [crea=false]
    * @returns {Promise<FileSystemDirectoryHandle>}
    */
-  const _getDirPerStato = async (cantiereId, statoRisoluzione, crea = false) => {
-    const nomeFolder = _STATO_A_FOLDER[statoRisoluzione];
-    if (!nomeFolder) throw new Error(`NC_SERVICE: stato_risoluzione non valido: "${statoRisoluzione}"`);
+  const _getDirNC = async (cantiereId, crea = false) => {
     const root = FILESYSTEM.getHandleAttivo();
     return FILESYSTEM.navigaPercorso(
       await root.getDirectoryHandle(cantiereId),
-      ['05_Non-Conformita', nomeFolder],
+      ['05_Non-Conformita', _FOLDER_NC],
       crea
     );
   };
@@ -82,42 +76,63 @@ const NC_SERVICE = (() => {
   // ── CRUD ─────────────────────────────────────────────────────────────────────
 
   /**
-   * Scrive una nuova NC in 05_Non-Conformita/<stato_risoluzione>/<uuid>.json.
+   * Scrive una nuova NC in 05_Non-Conformita/Aperte/<uuid>.json.
    * @param {object} nc  record creato con creaNCVuota() e popolato
    * @returns {Promise<object>}
    */
   const creaNC = async (nc) => {
     nc.aggiornato_il = new Date().toISOString();
-    const dir = await _getDirPerStato(nc.cantiere_id, nc.stato_risoluzione, true);
+    const dir = await _getDirNC(nc.cantiere_id, true);
     await FILESYSTEM.scriviJson(dir, `${nc.id}.json`, nc);
     return nc;
   };
 
   /**
-   * Aggiorna una NC nella sua cartella corrente (senza cambiare stato_risoluzione).
-   * Per cambiare stato_risoluzione usare cambiaStatoRisoluzione().
+   * Aggiorna una NC nella sua posizione fissa.
+   * Non cambia la cartella: riscrive il file dov'è sempre stato.
    * @param {object} nc
    * @returns {Promise<object>}
    */
   const aggiornaNC = async (nc) => {
     nc.aggiornato_il = new Date().toISOString();
-    const dir = await _getDirPerStato(nc.cantiere_id, nc.stato_risoluzione);
+    const dir = await _getDirNC(nc.cantiere_id);
     await FILESYSTEM.scriviJson(dir, `${nc.id}.json`, nc);
     return nc;
   };
 
   /**
-   * Legge tutte le NC dalle 3 sottocartelle per il cantiere dato.
-   * Esclude i record soft-deleted (_cestino: true).
-   * Ordina per data_rilevazione decrescente (più recente prima).
+   * Cambia stato_risoluzione di una NC.
+   * Aggiorna solo il campo nel record e riscrive il file nella sua posizione fissa.
+   * Nessuno spostamento di file. Transizioni reversibili: APERTA ↔ IN_RISOLUZIONE ↔ CHIUSA.
+   * @param {object} nc
+   * @param {string} nuovoStato  'APERTA' | 'IN_RISOLUZIONE' | 'CHIUSA'
+   * @returns {Promise<object>}
+   */
+  const cambiaStatoRisoluzione = async (nc, nuovoStato) => {
+    const STATI_VALIDI = new Set(['APERTA', 'IN_RISOLUZIONE', 'CHIUSA']);
+    if (!STATI_VALIDI.has(nuovoStato)) {
+      throw new Error(`NC_SERVICE: stato_risoluzione non valido: "${nuovoStato}"`);
+    }
+    if (nc.stato_risoluzione === nuovoStato) return nc;
+    return aggiornaNC({ ...nc, stato_risoluzione: nuovoStato });
+  };
+
+  /**
+   * Legge tutte le NC (non cestinate) per il cantiere dato.
+   *
+   * Scansiona tutte e 3 le sottocartelle per tolleranza verso dati legacy v1
+   * (che spostava i file al cambio stato). In condizioni normali (v2) tutte
+   * le NC stanno in Aperte/. Deduplicazione per id: vince la versione con
+   * aggiornato_il più recente.
+   *
    * @param {string} cantiereId
-   * @returns {Promise<object[]>}
+   * @returns {Promise<object[]>}  ordinati per data_rilevazione decrescente
    */
   const leggiNC = async (cantiereId) => {
-    const root      = FILESYSTEM.getHandleAttivo();
-    const risultati = [];
+    const root  = FILESYSTEM.getHandleAttivo();
+    const byId  = new Map();  // id → record con aggiornato_il più recente
 
-    for (const nomeFolder of Object.values(_STATO_A_FOLDER)) {
+    for (const nomeFolder of _TUTTE_FOLDERS) {
       let subDir;
       try {
         subDir = await FILESYSTEM.navigaPercorso(
@@ -134,11 +149,18 @@ const NC_SERVICE = (() => {
         if (fh.kind !== 'file' || !nome.endsWith('.json')) continue;
         try {
           const nc = await FILESYSTEM.leggiJson(subDir, nome);
-          if (!nc._cestino) risultati.push(nc);
+          if (nc._cestino) continue;
+          // Deduplicazione: mantieni la versione con aggiornato_il più recente
+          const esistente = byId.get(nc.id);
+          if (!esistente ||
+              (nc.aggiornato_il ?? '') > (esistente.aggiornato_il ?? '')) {
+            byId.set(nc.id, nc);
+          }
         } catch { /* salta file corrotto o temporaneamente non leggibile */ }
       }
     }
 
+    const risultati = [...byId.values()];
     risultati.sort((a, b) =>
       (b.data_rilevazione ?? b.creato_il ?? '').localeCompare(
         a.data_rilevazione ?? a.creato_il ?? ''
@@ -147,66 +169,7 @@ const NC_SERVICE = (() => {
     return risultati;
   };
 
-  // ── Transizione di stato ─────────────────────────────────────────────────────
-
-  /**
-   * Cambia stato_risoluzione di una NC con spostamento fisico del file.
-   *
-   * Le transizioni sono REVERSIBILI: APERTA ↔ IN_RISOLUZIONE ↔ CHIUSA.
-   *
-   * Ordine critico anti-perdita dati:
-   *   STEP 1 — scrivi il record aggiornato nella NUOVA cartella.
-   *            Se fallisce qui, la NC resta intatta nella vecchia posizione.
-   *   STEP 2 — soft-delete nella VECCHIA cartella.
-   *            Se fallisce qui, la NC è duplicata (recuperabile) ma non persa.
-   *
-   * @param {object} nc          record NC con stato_risoluzione corrente
-   * @param {string} nuovoStato  'APERTA' | 'IN_RISOLUZIONE' | 'CHIUSA'
-   * @returns {Promise<object>}  il record aggiornato con il nuovo stato_risoluzione
-   */
-  const cambiaStatoRisoluzione = async (nc, nuovoStato) => {
-    if (!_STATO_A_FOLDER[nuovoStato]) {
-      throw new Error(`NC_SERVICE: stato_risoluzione non valido: "${nuovoStato}"`);
-    }
-    // No-op: già nello stato richiesto
-    if (nc.stato_risoluzione === nuovoStato) return nc;
-
-    const vecchiaDir = await _getDirPerStato(nc.cantiere_id, nc.stato_risoluzione);
-    const nuovaDir   = await _getDirPerStato(nc.cantiere_id, nuovoStato, true);
-
-    const ncAggiornata = {
-      ...nc,
-      stato_risoluzione: nuovoStato,
-      aggiornato_il:     new Date().toISOString(),
-    };
-
-    // STEP 1 — scrivi nella nuova cartella (punto di non-ritorno)
-    await FILESYSTEM.scriviJson(nuovaDir, `${nc.id}.json`, ncAggiornata);
-
-    // STEP 2 — soft-delete nella vecchia (la NC è già al sicuro nel nuovo posto)
-    try {
-      const vecchia = await FILESYSTEM.leggiJson(vecchiaDir, `${nc.id}.json`);
-      await FILESYSTEM.scriviJson(vecchiaDir, `${nc.id}.json`, {
-        ...vecchia,
-        _cestino:      true,
-        _eliminato_il: new Date().toISOString(),
-      });
-    } catch (err) {
-      // Non bloccante: la NC esiste già nella nuova posizione.
-      // Al prossimo leggiNC() il record duplicato (con _cestino) viene filtrato.
-      console.warn(`NC_SERVICE: soft-delete NC "${nc.id}" da "${nc.stato_risoluzione}" fallito.`, err);
-    }
-
-    return ncAggiornata;
-  };
-
   // ── API pubblica ─────────────────────────────────────────────────────────────
 
-  return {
-    creaNCVuota,
-    creaNC,
-    leggiNC,
-    aggiornaNC,
-    cambiaStatoRisoluzione,
-  };
+  return { creaNCVuota, creaNC, leggiNC, aggiornaNC, cambiaStatoRisoluzione };
 })();
