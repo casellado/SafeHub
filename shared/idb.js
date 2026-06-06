@@ -208,13 +208,20 @@ const IDB = (() => {
   // Cartelle documento monitorate da rigeneraIndiceDocumenti.
   // Solo i moduli implementati; le sottocartelle determinano lo stato del record.
   const _CARTELLE_DOC = [
-    { folder: '02_Verbali-Riunione',         subs: ['Bozze', 'Protocollati'],  tipo: 'verbale-riunione' },
-    { folder: '03_Verifiche-POS',            subs: ['Bozze', 'Protocollati'],  tipo: 'verifica-pos' },
-    { folder: '04_Proposte-Sospensione-CSE', subs: ['Bozze', 'Protocollati'],  tipo: 'proposta-sospensione' },
-    { folder: '05_Disposizioni-RL',          subs: ['Bozze', 'Protocollati'],  tipo: 'disposizione-rl' },
-    { folder: '07_Verifiche-ITP',            subs: ['Bozze', 'Protocollati'],  tipo: 'verifica-itp' },
+    { folder: '02_Verbali-Riunione',         subs: ['Bozze', 'Protocollati'],              tipo: 'verbale-riunione' },
+    { folder: '03_Verifiche-POS',            subs: ['Bozze', 'Protocollati'],              tipo: 'verifica-pos' },
+    { folder: '04_Proposte-Sospensione-CSE', subs: ['Bozze', 'Protocollati'],              tipo: 'proposta-sospensione' },
+    { folder: '05_Disposizioni-RL',          subs: ['Bozze', 'Protocollati'],              tipo: 'disposizione-rl' },
+    { folder: '05_Non-Conformita',           subs: ['Aperte', 'In-Risoluzione', 'Chiuse'], tipo: 'non-conformita' },
+    { folder: '07_Verifiche-ITP',            subs: ['Bozze', 'Protocollati'],              tipo: 'verifica-itp' },
   ];
-  const _STATO_DA_SUB = { Bozze: 'BOZZA', Protocollati: 'PROTOCOLLATO' };
+  const _STATO_DA_SUB = {
+    Bozze:            'BOZZA',
+    Protocollati:     'PROTOCOLLATO',
+    Aperte:           'APERTA',
+    'In-Risoluzione': 'IN_RISOLUZIONE',
+    Chiuse:           'CHIUSA',
+  };
 
   /**
    * Ri-scansiona SafeHub-CSE-Lavori/ e ricostruisce documenti_indice.
