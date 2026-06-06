@@ -486,6 +486,9 @@ function PropostaSospensione() {
         this.corrente.aggiornato_il = new Date().toISOString();
         await FILESYSTEM.scriviJson(prtDir, `${numEsc}.json`, this.corrente);
 
+        // Hook diario — fire-and-forget: la protocollazione non deve mai fallire per questo
+        _hookDiarioPSProtocollata(this.corrente, cantId).catch(e => console.warn('[diario] hook PS:', e));
+
         try {
           const bDir  = await FILESYSTEM.navigaPercorso(cantDir, ['04_Proposte-Sospensione-CSE', 'Bozze']);
           const bozza = await FILESYSTEM.leggiJson(bDir, `${this.corrente.id}.json`);
@@ -632,6 +635,43 @@ async function generaCorpoHtmlPropostaSospensione(d) {
   }
 
   return p.join('\n');
+}
+
+// ── Hook Diario CSE — best-effort (non blocca mai la protocollazione) ─────────
+
+async function _hookDiarioPSProtocollata(corrente, cantiere_id) {
+  if (typeof DIARIO_SERVICE === 'undefined') return;
+  const numero   = corrente.numero_progressivo ?? '';
+  const dataProt = corrente.protocollo?.data_protocollo
+                   ? UTILS.formatData(corrente.protocollo.data_protocollo) : '';
+  const prov     = corrente.provvedimenti ?? {};
+  const impId    = prov.allontanamento_imprese?.impresa_id ?? null;
+  const impNome  = impId ? (_nomeImpresaGenPS(impId) || '') : (prov.allontanamento_imprese?.valore || '');
+  const conNum   = corrente.contestazione?.numero ?? '';
+
+  // Elenco provvedimenti spuntati
+  const provvElencati = [
+    prov.sospensione_lavori                   ? 'sospensione lavori'         : null,
+    prov.allontanamento_imprese?.flag         ? 'allontanamento impresa'     : null,
+    prov.allontanamento_lav_autonomi?.flag    ? 'allontanamento lav.autonomo': null,
+    prov.risoluzione_contratto?.flag          ? 'risoluzione contratto'      : null,
+  ].filter(Boolean).join(', ');
+
+  const titolo = `Proposta di sospensione lavori protocollata${numero ? ': n. ' + numero : ''}`;
+  const desc   = [
+    provvElencati ? `Provvedimenti: ${provvElencati}` : null,
+    impNome       ? `Impresa: ${impNome}`             : null,
+    conNum        ? `Rif. contestazione n. ${conNum}` : null,
+    dataProt      ? `Data protocollo: ${dataProt}`    : null,
+  ].filter(Boolean).join('\n');
+  await DIARIO_SERVICE.creaVoceAuto({
+    cantiere_id,
+    tipo:        'PROPOSTA_SOSPENSIONE',
+    titolo,
+    descrizione: desc,
+    soggetti:    impNome ? [impNome] : [],
+    riferimento: corrente.id,
+  });
 }
 
 function _nomeImpresaGenPS(id) {
