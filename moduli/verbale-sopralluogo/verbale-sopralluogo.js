@@ -22,24 +22,25 @@
 
 const NOTE_NORMATIVE_VS = [
   {
-    titolo: 'Natura del verbale di sopralluogo',
-    testo:  'Il verbale arriva da SafeCant (PWA iPad dei sopralluoghisti) come file JSON già ' +
-            'compilato sul campo con firme raccolte in loco. SafeHub lo riceve, il CSE lo rifinisce ' +
-            'e aggiunge la propria controfirma. Il verbale di sopralluogo è un documento interno del ' +
-            'CSE: non ha iter di protocollo esterno (a differenza dei documenti del Flusso B).',
+    titolo: 'Fondamento e finalità (art. 92 c.1 lett. a; art. 100)',
+    testo:  'Il sopralluogo è lo strumento con cui il CSE verifica in cantiere l\'applicazione del PSC ' +
+            'e delle procedure di lavoro da parte di imprese e lavoratori autonomi. La periodicità non ' +
+            'è fissata dalla legge: la stabilisce il CSE in base alle caratteristiche dell\'opera, ' +
+            'comunque nelle fasi critiche.',
   },
   {
-    titolo: 'Controfirma CSE (art. 92 D.Lgs 81/08)',
-    testo:  'Il sopralluoghista ha già firmato sul campo. I presenti hanno già firmato (o rifiutato ' +
-            'con motivo). La controfirma del CSE titolare attesta la presa in carico e la validazione ' +
-            'del verbale. Firma legale tramite sistema esterno (GoSign o equivalente).',
+    titolo: 'Cosa annotare (art. 92 c.1 lett. e)',
+    testo:  'Non basta annotare il rilievo: il verbale deve indicare l\'inadempienza riscontrata, ' +
+            'l\'azione per rimediare, chi deve eseguirla ed entro quando. In caso di inosservanze il ' +
+            'CSE contesta per iscritto e segnala al Committente/RL (sequenza: inosservanza → ordine ' +
+            '→ segnalazione).',
   },
   {
-    titolo: 'Non Conformità (nc_drafts)',
-    testo:  'Le NC abbozzate sul campo sono già presenti nel corpo del verbale. ' +
-            'Vengono mostrate nella scheda NC per consultazione. ' +
-            '// TODO M14: quando esisterà il modulo Non Conformità, ' +
-            'gli nc_drafts genereranno voci NC da monitorare (aggancio Flusso A→B).',
+    titolo: 'Valore e conservazione',
+    testo:  'Il verbale, sottoscritto dai presenti, può costituire — in funzione dei contenuti — ' +
+            'aggiornamento del PSC. L\'esito va documentato per iscritto, trasmesso alle imprese ' +
+            'interessate e tenuto disponibile in cantiere; al sopralluogo successivo il CSE verifica ' +
+            'l\'avvenuto adeguamento.',
   },
 ];
 
@@ -113,6 +114,7 @@ function VerbaleSOPRALLUOGO() {
     corrente: null, scheda: 'contenuto',
     caricamento: false, generando: false,
     firmaModal: null, noteAperte: false,
+    get noteVS() { return NOTE_NORMATIVE_VS; },
     _autosaveTimer: null, _statoSalvataggio: 'salvato',
     _docxBlob: null,
     _editorEl: null,
@@ -745,12 +747,10 @@ const _TEMPLATE_VS = /* html */`
   </div>
 
   <!-- NOTE NORMATIVE -->
-  <div x-show="noteAperte" x-transition class="mb-4 bg-sky-50 border border-sky-200 rounded-lg p-4 space-y-3">
-    <template x-for="nota in $data.constructor.noteVS ?? []">
-      <div>
-        <p class="text-xs font-semibold text-sky-800 mb-1" x-text="nota.titolo"></p>
-        <p class="text-xs text-sky-700 leading-relaxed" x-text="nota.testo"></p>
-      </div>
+  <div x-show="noteAperte" x-transition class="nota-normativa-panel mb-4" role="note">
+    <p class="text-xs text-sky-500 mb-2 italic">Promemoria per il CSE — non compare nel documento.</p>
+    <template x-for="nota in noteVS" :key="nota.titolo">
+      <div><h4 x-text="nota.titolo"></h4><p x-text="nota.testo"></p></div>
     </template>
   </div>
 
@@ -1257,13 +1257,6 @@ const _TEMPLATE_VS = /* html */`
 
 </div>
 `;
-
-// ── Dati statici accessibili al template ──────────────────────────────────────
-// (Alpine non accede a costanti del modulo per nome; si passano via getter)
-VerbaleSOPRALLUOGO.noteVS = NOTE_NORMATIVE_VS;
-
-// Il template accede via $data.constructor.noteVS — pattern già usato in altri moduli
-// per esporre costanti senza inquinare lo stato del componente.
 
 // ── Registrazione ─────────────────────────────────────────────────────────────
 
