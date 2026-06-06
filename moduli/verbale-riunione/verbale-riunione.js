@@ -631,6 +631,9 @@ function VerbaleRiunione() {
 
         await FILESYSTEM.scriviJson(prtDir, `${numEsc}.json`, this.corrente);
 
+        // Hook diario — fire-and-forget: la protocollazione non deve mai fallire per questo
+        _hookDiarioVRProtocollato(this.corrente, cantId).catch(e => console.warn('[diario] hook VR:', e));
+
         // Soft-delete dalla bozza
         try {
           const bDir  = await FILESYSTEM.navigaPercorso(cantDir, ['02_Verbali-Riunione', 'Bozze']);
@@ -855,6 +858,34 @@ async function generaCorpoHtmlVerbaleRiunione(d) {
 function _nomeImpresaGen(id) {
   try { return ANAGRAFICA_SERVICE.getEntita('imprese', id)?.ragioneSociale ?? id ?? ''; }
   catch { return id ?? ''; }
+}
+
+// ── Hook Diario CSE — best-effort (non blocca mai la protocollazione) ─────────
+
+/**
+ * Registra la protocollazione del Verbale di Riunione nel Diario CSE.
+ * Chiamata DOPO il salvataggio su disco; qualsiasi errore è swallowed.
+ */
+async function _hookDiarioVRProtocollato(corrente, cantiere_id) {
+  if (typeof DIARIO_SERVICE === 'undefined') return;
+  const numero   = corrente.numero_progressivo ?? '';
+  const dataProt = corrente.protocollo?.data_protocollo
+                   ? UTILS.formatData(corrente.protocollo.data_protocollo) : '';
+  const dataRiun = corrente.data_riunione
+                   ? UTILS.formatData(corrente.data_riunione) : '';
+  const titolo   = `Verbale di riunione di coordinamento protocollato${numero ? ': n. ' + numero : ''}`;
+  const desc     = [
+    dataRiun ? `Data riunione: ${dataRiun}`   : null,
+    dataProt ? `Data protocollo: ${dataProt}` : null,
+  ].filter(Boolean).join('\n');
+  await DIARIO_SERVICE.creaVoceAuto({
+    cantiere_id,
+    tipo:        'VERBALE_RIUNIONE',
+    titolo,
+    descrizione: desc,
+    soggetti:    [],
+    riferimento: corrente.id,
+  });
 }
 
 // ── Template HTML ─────────────────────────────────────────────────────────────
