@@ -3,7 +3,7 @@
  *
  * Usa NC_SERVICE (M14-a) per tutte le operazioni dati.
  * Pezzo b: elenco filtrato per stato + crea + modifica + cambia stato + cestina.
- * Pezzo c (aggancio nc_draft) e pezzo d (scadenze/semaforo): non qui.
+ * Pezzo d (scadenze/semaforo): incluso. Pezzo c (aggancio nc_draft): non qui.
  */
 
 // ── Componente Alpine ─────────────────────────────────────────────────────────
@@ -188,6 +188,24 @@ function NonConformita() {
       return 'bg-amber-50 text-amber-700';
     },
 
+    /**
+     * Calcola lo stato semaforo della scadenza di risoluzione di una NC.
+     * Restituisce null se la NC non ha scadenza o è già CHIUSA.
+     * Pattern identico a calcolaScadenzeImpresa (anagrafica-service.js:572):
+     * giorniAllaScadenza → scaduto / in_scadenza / valido con soglia 'default' (30gg).
+     * @param {object} nc
+     * @returns {{gg: number, stato: 'scaduto'|'in_scadenza'|'valido'}|null}
+     */
+    calcolaScadenzaNC(nc) {
+      if (!nc.scadenza_risoluzione)            return null;
+      if (nc.stato_risoluzione === 'CHIUSA')   return null;   // risolta: nessun allarme
+      const gg = UTILS.giorniAllaScadenza(nc.scadenza_risoluzione);
+      if (gg === null) return null;
+      const soglia = IMPOSTAZIONI_SERVICE.soglia('default').giorni;   // 30 gg
+      const stato  = gg < 0 ? 'scaduto' : gg < soglia ? 'in_scadenza' : 'valido';
+      return { gg, stato };
+    },
+
     _imprese() { return this.imprese; },
   };
 }
@@ -315,12 +333,22 @@ const _TEMPLATE_NC = `
               <span x-show="nc.data_rilevazione"
                     x-text="'Rilevata: ' + UTILS.formatData(nc.data_rilevazione)"></span>
 
-              <!-- Scadenza risoluzione (senza semaforo — pezzo d) -->
-              <span x-show="nc.scadenza_risoluzione"
-                    class="font-medium"
-                    :class="UTILS.giorniAllaScadenza(nc.scadenza_risoluzione) !== null && UTILS.giorniAllaScadenza(nc.scadenza_risoluzione) < 0
-                            ? 'text-red-600' : 'text-slate-500'"
-                    x-text="'Scad. risoluzione: ' + UTILS.formatData(nc.scadenza_risoluzione)"></span>
+              <!-- Scadenza risoluzione + semaforo (M14-d) -->
+              <template x-if="calcolaScadenzaNC(nc)">
+                <span class="flex items-center gap-1"
+                      :class="calcolaScadenzaNC(nc).stato === 'scaduto'
+                                ? 'text-red-600 font-semibold'
+                                : calcolaScadenzaNC(nc).stato === 'in_scadenza'
+                                  ? 'text-amber-600 font-medium'
+                                  : 'text-green-600'">
+                  <span aria-hidden="true"
+                        x-text="calcolaScadenzaNC(nc).stato === 'scaduto'    ? '🔴'
+                               : calcolaScadenzaNC(nc).stato === 'in_scadenza' ? '🟡' : '🟢'"></span>
+                  <span x-text="calcolaScadenzaNC(nc).stato === 'scaduto'
+                    ? 'scaduta da ' + Math.abs(calcolaScadenzaNC(nc).gg) + ' gg'
+                    : 'mancano ' + calcolaScadenzaNC(nc).gg + ' gg'"></span>
+                </span>
+              </template>
 
               <!-- Origine -->
               <span x-show="nc.origine === 'da_verbale_sopralluogo'"
