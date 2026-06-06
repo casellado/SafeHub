@@ -30,6 +30,7 @@ const _TIPI_DIARIO = [
   { valore: 'VERBALE_RIUNIONE', etichetta: 'Verbale Riunione',       icona: '📋', cls: 'bg-cyan-100 text-cyan-800',   auto_only: true },
   { valore: 'VERIFICA_POS',        etichetta: 'Verifica POS',           icona: '✅', cls: 'bg-emerald-100 text-emerald-800', auto_only: true },
   { valore: 'PROPOSTA_SOSPENSIONE', etichetta: 'Proposta Sospensione',  icona: '✋', cls: 'bg-orange-100 text-orange-800',   auto_only: true },
+  { valore: 'DISPOSIZIONE_RL',      etichetta: 'Disposizione RL',       icona: '📌', cls: 'bg-red-100 text-red-800',        auto_only: true },
 ];
 
 // Promemori normativi — UI only, NON entrano nel DOCX esportato.

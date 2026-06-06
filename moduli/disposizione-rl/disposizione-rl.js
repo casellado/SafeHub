@@ -493,6 +493,10 @@ function DisposizioneRL() {
         };
         this.corrente.aggiornato_il = new Date().toISOString();
         await FILESYSTEM.scriviJson(prtDir, `${numEsc}.json`, this.corrente);
+
+        // Hook diario — fire-and-forget: la protocollazione non deve mai fallire per questo
+        _hookDiarioRLProtocollata(this.corrente, cantId).catch(e => console.warn('[diario] hook RL:', e));
+
         try {
           const bDir = await FILESYSTEM.navigaPercorso(cantDir, ['05_Disposizioni-RL', 'Bozze']);
           const bz   = await FILESYSTEM.leggiJson(bDir, `${this.corrente.id}.json`);
@@ -649,6 +653,38 @@ async function generaCorpoHtmlDisposizioneRL(d) {
   if (vistoImg)  p.push(`<p ${pr}><img src="${vistoImg}" alt="firma Visto"></p>`);
 
   return p.join('\n');
+}
+
+// ── Hook Diario CSE — best-effort (non blocca mai la protocollazione) ─────────
+
+async function _hookDiarioRLProtocollata(corrente, cantiere_id) {
+  if (typeof DIARIO_SERVICE === 'undefined') return;
+  const numero   = corrente.numero_progressivo ?? '';
+  const dataProt = corrente.protocollo?.data_protocollo
+                   ? UTILS.formatData(corrente.protocollo.data_protocollo) : '';
+  const impNome  = corrente.destinatari?.impresa_nome
+                   || (corrente.destinatari?.impresa_id ? _nomeImpresaGenRL(corrente.destinatari.impresa_id) : '');
+  const prov     = corrente.provvedimenti ?? {};
+  const provvElencati = [
+    prov.sospensione_lavori                ? 'sospensione lavori'          : null,
+    prov.allontanamento_imprese?.flag      ? 'allontanamento impresa'      : null,
+    prov.allontanamento_lav_autonomi?.flag ? 'allontanamento lav.autonomo' : null,
+    prov.risoluzione_contratto?.flag       ? 'risoluzione contratto'       : null,
+  ].filter(Boolean).join(', ');
+  const titolo = `Disposizione RL protocollata${numero ? ': n. ' + numero : ''}`;
+  const desc   = [
+    impNome       ? `Destinatario: ${impNome}`         : null,
+    provvElencati ? `Provvedimenti: ${provvElencati}`  : null,
+    dataProt      ? `Data protocollo: ${dataProt}`     : null,
+  ].filter(Boolean).join('\n');
+  await DIARIO_SERVICE.creaVoceAuto({
+    cantiere_id,
+    tipo:        'DISPOSIZIONE_RL',
+    titolo,
+    descrizione: desc,
+    soggetti:    impNome ? [impNome] : [],
+    riferimento: corrente.id,
+  });
 }
 
 function _nomeImpresaGenRL(id) {
