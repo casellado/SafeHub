@@ -139,6 +139,10 @@ function ListaMezziAttrezzature() {
       if (!m) return;
       this.formMezzo = JSON.parse(JSON.stringify(m));
       this.formMezzo.verifichePeriodiche ??= [];
+      // Assegna id alle verifiche pre-esistenti che ne sono prive (retrocompatibilità)
+      for (const vp of this.formMezzo.verifichePeriodiche) {
+        if (!vp.id) vp.id = UTILS.generaId('vpz');
+      }
       this.formMezzo.libretto            ??= {};
       this.formMezzo.documenti_extra     ??= [];
       this.nuovoMezzo = false; this.modMezzo = false; this.drawerMezzo = true;
@@ -174,21 +178,47 @@ function ListaMezziAttrezzature() {
       catch (err) { ERRORI.gestisciErrore('mezzi/elimina', err); }
     },
 
-    // Verifiche periodiche mezzo (lista dinamica)
+    // Verifiche periodiche mezzo (lista dinamica — soft-delete per storico)
     aggiungiVerificaMezzo() {
-      (this.formMezzo.verifichePeriodiche ??= []).push({ tipo: '', data: null, prossima: null, ente: '', filename: null, base64: null });
+      (this.formMezzo.verifichePeriodiche ??= []).push({
+        id: UTILS.generaId('vpz'),
+        tipo: '', data: null, prossima: null, ente: '', filename: null, base64: null,
+      });
       this.formMezzo = { ...this.formMezzo }; this.modMezzo = true;
     },
-    rimuoviVerificaMezzo(idx) {
-      this.formMezzo.verifichePeriodiche.splice(idx, 1);
+    rimuoviVerificaMezzo(id) {
+      const idx = (this.formMezzo.verifichePeriodiche ?? []).findIndex(vp => vp.id === id && !vp._cestino);
+      if (idx < 0) return;
+      this.formMezzo.verifichePeriodiche[idx] = {
+        ...this.formMezzo.verifichePeriodiche[idx],
+        _cestino: true,
+        _eliminato_il: new Date().toISOString(),
+      };
       this.formMezzo = { ...this.formMezzo }; this.modMezzo = true;
     },
-    async onVerificaMezzoFile(idx, ev) {
+    async onVerificaMezzoFile(id, ev) {
       const f = ev.target.files?.[0]; if (!f) return;
       const b64 = await _leggiFileBase64MA(f);
-      this.formMezzo.verifichePeriodiche[idx] = { ...this.formMezzo.verifichePeriodiche[idx], filename: f.name, base64: b64 };
+      const old    = (this.formMezzo.verifichePeriodiche ?? []).find(vp => vp.id === id && !vp._cestino);
+      if (!old) return;
+      const oldIdx = this.formMezzo.verifichePeriodiche.indexOf(old);
+      this.formMezzo.verifichePeriodiche[oldIdx] = { ...old, _cestino: true, _eliminato_il: new Date().toISOString() };
+      this.formMezzo.verifichePeriodiche.push({
+        id: UTILS.generaId('vpz'), tipo: old.tipo, data: old.data,
+        prossima: old.prossima, ente: old.ente, filename: f.name, base64: b64,
+      });
       this.formMezzo = { ...this.formMezzo }; this.modMezzo = true;
     },
+
+    get verificheAttiveMz() {
+      return (this.formMezzo.verifichePeriodiche ?? []).filter(vp => !vp._cestino);
+    },
+    storicoVerificaMz(tipo) {
+      return (this.formMezzo.verifichePeriodiche ?? [])
+        .filter(vp => vp._cestino && vp.tipo === tipo)
+        .sort((a, b) => (b._eliminato_il ?? '').localeCompare(a._eliminato_il ?? ''));
+    },
+
     async onLibrettoMezzoFile(ev) {
       const f = ev.target.files?.[0]; if (!f) return;
       this.formMezzo.libretto = { filename: f.name, base64: await _leggiFileBase64MA(f) };
@@ -776,38 +806,64 @@ const _TEMPLATE_MA = `
       <!-- 4. Verifiche periodiche -->
       <details open class="border border-slate-200 rounded-xl overflow-hidden">
         <summary class="px-4 py-3 bg-slate-50 cursor-pointer text-sm font-medium text-slate-700 hover:bg-slate-100 list-none flex items-center justify-between">
-          Verifiche periodiche <span class="text-xs font-normal text-slate-400 ml-1" x-text="(formMezzo.verifichePeriodiche??[]).length ? '(' + (formMezzo.verifichePeriodiche??[]).length + ')' : ''"></span>
+          Verifiche periodiche <span class="text-xs font-normal text-slate-400 ml-1" x-text="verificheAttiveMz.length ? '(' + verificheAttiveMz.length + ')' : ''"></span>
           <span class="text-slate-400 text-xs" aria-hidden="true">▾</span>
         </summary>
         <div class="p-4 space-y-3">
           <p class="text-xs text-slate-400">🔴 = verifica su mezzo di sollevamento (critica, art.71 c.11, D.M. 11/04/2011)</p>
-          <template x-for="(vp, idx) in (formMezzo.verifichePeriodiche??[])" :key="idx">
+          <template x-for="vp in verificheAttiveMz" :key="vp.id">
             <div class="border border-slate-200 rounded-lg p-3 space-y-2 relative">
-              <button @click="rimuoviVerificaMezzo(idx)" class="absolute top-2 right-2 text-red-400 hover:text-red-700 text-sm focus:outline-none" aria-label="Rimuovi">×</button>
+              <button @click="rimuoviVerificaMezzo(vp.id)" class="absolute top-2 right-2 text-red-400 hover:text-red-700 text-sm focus:outline-none" aria-label="Rimuovi">×</button>
               <div class="grid gap-2 sm:grid-cols-2">
                 <div>
                   <label class="block text-xs text-slate-500 mb-1">Tipo verifica</label>
                   <select :value="tipoVerMezzoInLista(vp.tipo) ? vp.tipo : (vp.tipo?'ALTRO':'')"
-                          @change="formMezzo.verifichePeriodiche[idx].tipo=$event.target.value!=='ALTRO'?$event.target.value:'';formMezzo={...formMezzo}"
+                          @change="vp.tipo=$event.target.value!=='ALTRO'?$event.target.value:'';formMezzo={...formMezzo}"
                           class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <option value="">— Seleziona —</option>
                     <template x-for="t in _tipiVerMezzo()" :key="t.valore"><option :value="t.valore" x-text="t.etichetta"></option></template>
                   </select>
-                  <input x-show="!tipoVerMezzoInLista(vp.tipo)" type="text" :value="vp.tipo" @input="formMezzo.verifichePeriodiche[idx].tipo=$event.target.value;formMezzo={...formMezzo}" placeholder="Descrivi la verifica" class="mt-1.5 w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <input x-show="!tipoVerMezzoInLista(vp.tipo)" type="text" :value="vp.tipo" @input="vp.tipo=$event.target.value;formMezzo={...formMezzo}" placeholder="Descrivi la verifica" class="mt-1.5 w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
-                <div><label class="block text-xs text-slate-500 mb-1">Ente verificatore</label><input type="text" :value="vp.ente??''" @input="formMezzo.verifichePeriodiche[idx].ente=$event.target.value;formMezzo={...formMezzo}" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
-                <div><label class="block text-xs text-slate-500 mb-1">Data eseguita</label><input type="date" :value="vp.data??''" @input="formMezzo.verifichePeriodiche[idx].data=$event.target.value||null;formMezzo={...formMezzo}" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div><label class="block text-xs text-slate-500 mb-1">Ente verificatore</label><input type="text" :value="vp.ente??''" @input="vp.ente=$event.target.value;formMezzo={...formMezzo}" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div><label class="block text-xs text-slate-500 mb-1">Data eseguita</label><input type="date" :value="vp.data??''" @input="vp.data=$event.target.value||null;formMezzo={...formMezzo}" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
                 <div>
                   <label class="block text-xs text-slate-500 mb-1">Prossima verifica 🔴</label>
-                  <input type="date" :value="vp.prossima??''" @input="formMezzo.verifichePeriodiche[idx].prossima=$event.target.value||null;formMezzo={...formMezzo}"
+                  <input type="date" :value="vp.prossima??''" @input="vp.prossima=$event.target.value||null;formMezzo={...formMezzo}"
                          class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                          :class="vp.prossima && UTILS.giorniAllaScadenza(vp.prossima)<0?'border-red-400 bg-red-50':''">
                 </div>
               </div>
               <label class="cursor-pointer text-xs text-blue-600 hover:text-blue-800">
-                <input type="file" accept=".pdf,.png,.jpg" class="sr-only" @change="onVerificaMezzoFile(idx,$event)">
-                <span x-text="vp.filename ? '📎 ' + vp.filename : '📎 Allega verbale'"></span>
+                <input type="file" accept=".pdf,.png,.jpg" class="sr-only" @change="onVerificaMezzoFile(vp.id,$event)">
+                <span x-text="vp.filename ? '↑ Sostituisci verbale' : '📎 Allega verbale'"></span>
               </label>
+              <!-- Storico: versioni precedenti di questa verifica (sola lettura) -->
+              <template x-if="storicoVerificaMz(vp.tipo).length > 0">
+                <details class="mt-1 text-xs">
+                  <summary class="cursor-pointer text-slate-400 hover:text-slate-600 select-none">
+                    Storico (<span x-text="storicoVerificaMz(vp.tipo).length"></span> vers. prec.)
+                  </summary>
+                  <ul class="mt-1 ml-1 border-l border-slate-100 pl-2 space-y-0.5">
+                    <template x-for="v in storicoVerificaMz(vp.tipo)" :key="(v._eliminato_il??'')+(v.filename??'')">
+                      <li class="flex items-center gap-2 text-slate-400">
+                        <span class="flex-shrink-0" x-text="UTILS.formatData(v._eliminato_il)"></span>
+                        <button x-show="v.base64" type="button"
+                                @click.stop="ALLEGATI.apriAllegato(v.base64, v.filename)"
+                                class="text-blue-500 hover:text-blue-700 truncate text-left
+                                       focus:outline-none focus:ring-1 focus:ring-blue-400 rounded"
+                                :title="'Apri ' + v.filename">
+                          📎 <span x-text="v.filename"></span>
+                        </button>
+                        <span x-show="!v.base64"
+                              class="text-slate-300 cursor-not-allowed truncate"
+                              title="Documento non disponibile"
+                              x-text="v.filename ? '📎 ' + v.filename : '—'"></span>
+                      </li>
+                    </template>
+                  </ul>
+                </details>
+              </template>
             </div>
           </template>
           <button @click="aggiungiVerificaMezzo()" type="button" class="text-sm text-blue-600 hover:text-blue-800 border border-blue-300 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">+ Aggiungi verifica</button>
