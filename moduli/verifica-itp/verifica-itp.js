@@ -467,6 +467,10 @@ function VerificaItp() {
         };
         this.corrente.aggiornato_il = new Date().toISOString();
         await FILESYSTEM.scriviJson(prtDir, `${numEsc}.json`, this.corrente);
+
+        // Hook diario — fire-and-forget: la protocollazione non deve mai fallire per questo
+        _hookDiarioITProtocollata(this.corrente, cantId).catch(e => console.warn('[diario] hook IT:', e));
+
         try {
           const bDir = await FILESYSTEM.navigaPercorso(cantDir, ['07_Verifiche-ITP', 'Bozze']);
           const bz   = await FILESYSTEM.leggiJson(bDir, `${this.corrente.id}.json`);
@@ -641,6 +645,33 @@ async function generaCorpoHtmlVerificaItp(d) {
   );
 
   return p.join('\n');
+}
+
+// ── Hook Diario CSE — best-effort (non blocca mai la protocollazione) ─────────
+
+async function _hookDiarioITProtocollata(corrente, cantiere_id) {
+  if (typeof DIARIO_SERVICE === 'undefined') return;
+  const numero   = corrente.numero_progressivo ?? '';
+  const dataProt = corrente.protocollo?.data_protocollo
+                   ? UTILS.formatData(corrente.protocollo.data_protocollo) : '';
+  const impNome  = corrente.impresa_affidataria?.testo
+                   || (corrente.impresa_affidataria?.impresa_id
+                       ? _nomeImpresaGenIT(corrente.impresa_affidataria.impresa_id) : '');
+  const titolo = impNome
+    ? `Verifica ITP impresa ${impNome} protocollata${numero ? ': n. ' + numero : ''}`
+    : `Verifica ITP protocollata${numero ? ': n. ' + numero : ''}`;
+  const desc   = [
+    impNome  ? `Impresa: ${impNome}`          : null,
+    dataProt ? `Data protocollo: ${dataProt}` : null,
+  ].filter(Boolean).join('\n');
+  await DIARIO_SERVICE.creaVoceAuto({
+    cantiere_id,
+    tipo:        'VERIFICA_ITP',
+    titolo,
+    descrizione: desc,
+    soggetti:    impNome ? [impNome] : [],
+    riferimento: corrente.id,
+  });
 }
 
 function _nomeImpresaGenIT(id) {
