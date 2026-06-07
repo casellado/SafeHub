@@ -250,17 +250,17 @@ const _TEMPLATE_CRUSCOTTO_OPERATIVO = `
             <p x-show="pannelloNc && pannelloNc.gravissime > 0"
                class="text-xs text-red-800 font-semibold flex items-center gap-1">
               <span>🔴</span>
-              <span x-text="pannelloNc.gravissime + ' gravissim' + (pannelloNc.gravissime === 1 ? 'a' : 'e')"></span>
+              <span x-text="(pannelloNc?.gravissime ?? 0) + ' gravissim' + ((pannelloNc?.gravissime ?? 0) === 1 ? 'a' : 'e')"></span>
             </p>
             <p x-show="pannelloNc && pannelloNc.gravi > 0"
                class="text-xs text-amber-800 flex items-center gap-1">
               <span>🟠</span>
-              <span x-text="pannelloNc.gravi + ' grav' + (pannelloNc.gravi === 1 ? 'e' : 'i')"></span>
+              <span x-text="(pannelloNc?.gravi ?? 0) + ' grav' + ((pannelloNc?.gravi ?? 0) === 1 ? 'e' : 'i')"></span>
             </p>
             <p x-show="pannelloNc && pannelloNc.inScadenza > 0"
                class="text-xs text-amber-700 flex items-center gap-1">
               <span>⏰</span>
-              <span x-text="pannelloNc.inScadenza + ' con scadenza ≤ 7 giorni'"></span>
+              <span x-text="(pannelloNc?.inScadenza ?? 0) + ' con scadenza ≤ 7 giorni'"></span>
             </p>
           </div>
           <p x-show="pannelloNc && pannelloNc.totale === 0"
@@ -298,12 +298,12 @@ const _TEMPLATE_CRUSCOTTO_OPERATIVO = `
             <p x-show="pannelloEventi && pannelloEventi.infortuni > 0"
                class="text-xs text-red-800 flex items-center gap-1">
               <span>🔴</span>
-              <span x-text="pannelloEventi.infortuni + ' infortun' + (pannelloEventi.infortuni === 1 ? 'io' : 'i')"></span>
+              <span x-text="(pannelloEventi?.infortuni ?? 0) + ' infortun' + ((pannelloEventi?.infortuni ?? 0) === 1 ? 'io' : 'i')"></span>
             </p>
             <p x-show="pannelloEventi && pannelloEventi.nearMiss > 0"
                class="text-xs text-amber-700 flex items-center gap-1">
               <span>🟡</span>
-              <span x-text="pannelloEventi.nearMiss + ' near-miss'"></span>
+              <span x-text="(pannelloEventi?.nearMiss ?? 0) + ' near-miss'"></span>
             </p>
           </div>
           <p x-show="pannelloEventi && pannelloEventi.totale === 0"
@@ -336,12 +336,12 @@ const _TEMPLATE_CRUSCOTTO_OPERATIVO = `
             <p x-show="pannelloOds && pannelloOds.riscontri > 0"
                class="text-xs text-amber-700 flex items-center gap-1">
               <span>↩</span>
-              <span x-text="pannelloOds.riscontri + ' riscontr' + (pannelloOds.riscontri === 1 ? 'o atteso' : 'i attesi')"></span>
+              <span x-text="(pannelloOds?.riscontri ?? 0) + ' riscontr' + ((pannelloOds?.riscontri ?? 0) === 1 ? 'o atteso' : 'i attesi')"></span>
             </p>
             <p x-show="pannelloOds && pannelloOds.adempimenti > 0"
                class="text-xs text-amber-700 flex items-center gap-1">
               <span>⚡</span>
-              <span x-text="pannelloOds.adempimenti + ' adempiment' + (pannelloOds.adempimenti === 1 ? 'o pendente' : 'i pendenti')"></span>
+              <span x-text="(pannelloOds?.adempimenti ?? 0) + ' adempiment' + ((pannelloOds?.adempimenti ?? 0) === 1 ? 'o pendente' : 'i pendenti')"></span>
             </p>
             <p x-show="pannelloOds && pannelloOds.riscontri === 0 && pannelloOds.adempimenti === 0"
                class="text-xs text-green-700">✓ Nessun ODS in sospeso</p>
