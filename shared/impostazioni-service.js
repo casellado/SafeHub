@@ -70,6 +70,11 @@ const IMPOSTAZIONI_SERVICE = (() => {
       soglia_sync_avviso_giorni: 7,
       tema:                      'chiaro',
     },
+
+    // Impostazioni assistente AI locale (M26)
+    ai: {
+      modello: 'llama3.2:3b',   // default leggero per CPU; cambiare in gemma2:9b sul PC ufficio
+    },
   };
 
   // ---- Boot ----
@@ -166,9 +171,12 @@ const IMPOSTAZIONI_SERVICE = (() => {
     return out;
   };
 
+  /** Modello AI selezionato, con fallback al default. */
+  const aiModello = () => _dati?.ai?.modello ?? DEFAULT.ai.modello;
+
   return {
     carica, salva,
-    cse, firma, logo, modulo, soglie, soglia,
+    cse, firma, logo, modulo, soglie, soglia, aiModello,
     get dati()      { return _dati; },
     get isCaricato(){ return _dati !== null; },
     get DEFAULT()   { return DEFAULT; },

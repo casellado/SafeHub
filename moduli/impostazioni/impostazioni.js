@@ -51,6 +51,17 @@ function Impostazioni() {
     moduliQualita: {},
     soglie:        {},
     preferenze:    {},
+    ai:            {},
+
+    // Tab AI — capability + lista modelli
+    aiDisponibile:  null,   // null=verifica in corso, true, false
+    modelliAi:      [],
+
+    // Mini UI di test del ponte (temporanea, collaudo)
+    aiTestPrompt:      '',
+    aiTestRisposta:    '',
+    aiTestGenerando:   false,
+    _aiTestController: null,
 
     // Staging upload: file selezionato ma non ancora salvato
     firmaStaging: null,
@@ -74,6 +85,8 @@ function Impostazioni() {
       this.moduliQualita = JSON.parse(JSON.stringify(d.moduli_qualita));
       this.soglie        = JSON.parse(JSON.stringify(d.soglie_scadenza));
       this.preferenze    = { ...d.preferenze_app };
+      this.ai            = { ...(d.ai ?? IMPOSTAZIONI_SERVICE.DEFAULT.ai) };
+      this._verificaAi();
     },
 
     // ---- Helper ----
@@ -215,6 +228,48 @@ function Impostazioni() {
     async salvaPreferenze() {
       await this.eseguiSalvataggio({ preferenze_app: { ...this.preferenze } }, 'Preferenze');
     },
+
+    // ---- Assistente AI (tab ai) ----
+
+    async _verificaAi() {
+      if (typeof AI_BRIDGE === 'undefined') { this.aiDisponibile = false; return; }
+      this.aiDisponibile = await AI_BRIDGE.disponibile();
+      if (this.aiDisponibile) {
+        this.modelliAi = await AI_BRIDGE.modelli();
+      }
+    },
+
+    async salvaAi() {
+      await this.eseguiSalvataggio({ ai: { ...this.ai } }, 'Impostazioni AI');
+    },
+
+    // Mini UI di test del ponte
+    async aiTestGenera() {
+      if (!this.aiTestPrompt.trim() || this.aiTestGenerando) return;
+      this._aiTestController = new AbortController();
+      this.aiTestGenerando   = true;
+      this.aiTestRisposta    = '';
+      try {
+        await AI_BRIDGE.genera({
+          prompt: this.aiTestPrompt,
+          system: 'Sei un assistente per il Coordinatore della Sicurezza in Esecuzione (CSE). Rispondi in italiano, in modo conciso e professionale.',
+          onToken: (tok) => { this.aiTestRisposta += tok; },
+          signal:  this._aiTestController.signal,
+        });
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          this.aiTestRisposta = `⚠ ${err.message}`;
+        }
+      } finally {
+        this.aiTestGenerando   = false;
+        this._aiTestController = null;
+      }
+    },
+
+    aiTestInterrompi() {
+      this._aiTestController?.abort();
+      this.aiTestGenerando = false;
+    },
   };
 }
 
@@ -247,7 +302,8 @@ const _TEMPLATE_IMPOSTAZIONI = `
        class="flex flex-wrap gap-1 border-b border-slate-200 mb-6">
     <template x-for="[tid, tlabel] in [
         ['identita','Identità CSE'],['firma','Firma'],['logo','Logo'],
-        ['moduli','Moduli qualità'],['soglie','Soglie scadenza'],['preferenze','Preferenze']
+        ['moduli','Moduli qualità'],['soglie','Soglie scadenza'],['preferenze','Preferenze'],
+        ['ai','🤖 Assistente AI']
       ]" :key="tid">
       <button role="tab"
               :id="'tab-' + tid"
@@ -651,6 +707,127 @@ const _TEMPLATE_IMPOSTAZIONI = `
         Salva preferenze
       </button>
     </div>
+  </section>
+
+  <!-- ── PANEL 7: Assistente AI ──────────────────────────────── -->
+  <section role="tabpanel" id="panel-ai" aria-labelledby="tab-ai"
+           x-show="tabAttiva === 'ai'" class="space-y-6">
+
+    <!-- Stato disponibilità -->
+    <div class="flex items-center gap-3 p-3 rounded-xl border"
+         :class="aiDisponibile === null ? 'border-slate-200 bg-slate-50'
+               : aiDisponibile         ? 'border-green-200 bg-green-50'
+               :                         'border-amber-200 bg-amber-50'">
+      <span class="text-xl" aria-hidden="true"
+            x-text="aiDisponibile === null ? '⏳' : aiDisponibile ? '🟢' : '🟡'"></span>
+      <div>
+        <p class="text-sm font-medium text-slate-700"
+           x-text="aiDisponibile === null ? 'Verifica in corso…'
+                 : aiDisponibile         ? 'Ollama disponibile su localhost:11434'
+                 :                         'Ollama non raggiungibile — avvia il servizio'">
+        </p>
+        <p class="text-xs text-slate-400 mt-0.5">
+          L'assistente è locale: nessun dato esce dalla macchina.
+        </p>
+      </div>
+      <button @click="_verificaAi()"
+              class="ml-auto text-xs text-slate-500 hover:text-slate-800 px-3 py-1
+                     border border-slate-200 rounded-lg transition-colors
+                     focus:outline-none focus:ring-2 focus:ring-slate-400">
+        ↻ Riverifica
+      </button>
+    </div>
+
+    <!-- Selezione modello -->
+    <div class="max-w-sm">
+      <label for="ai-modello" class="block text-sm font-medium text-slate-700 mb-1">
+        Modello predefinito
+        <span class="text-slate-400 text-xs font-normal">
+          (usato da tutte le funzioni AI)
+        </span>
+      </label>
+
+      <!-- Select dinamico se Ollama disponibile, input testo altrimenti -->
+      <template x-if="aiDisponibile && modelliAi.length > 0">
+        <select id="ai-modello" x-model="ai.modello"
+                class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm
+                       focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <template x-for="m in modelliAi" :key="m">
+            <option :value="m" x-text="m"></option>
+          </template>
+        </select>
+      </template>
+      <template x-if="!aiDisponibile || modelliAi.length === 0">
+        <input id="ai-modello" type="text" x-model="ai.modello"
+               placeholder="es. llama3.2:3b"
+               class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </template>
+
+      <p class="text-xs text-slate-400 mt-1">
+        Sul PC sviluppo (CPU-only): <code class="bg-slate-100 px-1 rounded">llama3.2:3b</code> più veloce.
+        Sul PC ufficio (con VRAM): <code class="bg-slate-100 px-1 rounded">gemma2:9b</code> più capace.
+      </p>
+    </div>
+
+    <div class="flex justify-end pt-2 border-t border-slate-100">
+      <button @click="salvaAi()" :disabled="salvando"
+              class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white
+                     text-sm font-medium px-5 py-2 rounded-lg transition-colors
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+        Salva impostazioni AI
+      </button>
+    </div>
+
+    <!-- ── Mini UI di test del ponte (collaudo) ───────────────────── -->
+    <div class="border border-dashed border-slate-300 rounded-xl p-4 space-y-3">
+      <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+        🧪 Test ponte AI — solo per collaudo
+      </p>
+
+      <div>
+        <label for="ai-test-prompt" class="block text-xs text-slate-600 mb-1">Prompt di prova</label>
+        <textarea id="ai-test-prompt" rows="3" x-model="aiTestPrompt"
+                  placeholder="Es. Descrivi in due righe il ruolo del CSE in un cantiere."
+                  class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm resize-none
+                         focus:outline-none focus:ring-2 focus:ring-blue-500
+                         placeholder:text-slate-400"></textarea>
+      </div>
+
+      <div class="flex gap-2">
+        <button @click="aiTestGenera()"
+                :disabled="!aiDisponibile || aiTestGenerando || !aiTestPrompt.trim()"
+                class="bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white
+                       text-sm font-medium px-4 py-2 rounded-lg transition-colors
+                       focus:outline-none focus:ring-2 focus:ring-violet-500">
+          <span x-text="aiTestGenerando ? '⏳ Generazione…' : '▶ Genera'"></span>
+        </button>
+        <button @click="aiTestInterrompi()" x-show="aiTestGenerando"
+                class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200
+                       text-sm font-medium px-4 py-2 rounded-lg transition-colors
+                       focus:outline-none focus:ring-2 focus:ring-red-400">
+          ■ Interrompi
+        </button>
+        <button @click="aiTestRisposta = ''" x-show="aiTestRisposta && !aiTestGenerando"
+                class="text-xs text-slate-400 hover:text-slate-600 px-3 py-2 rounded-lg
+                       focus:outline-none focus:ring-2 focus:ring-slate-400">
+          Cancella
+        </button>
+      </div>
+
+      <!-- Risposta in streaming -->
+      <div x-show="aiTestRisposta"
+           class="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3
+                  text-sm text-slate-700 whitespace-pre-wrap leading-relaxed min-h-[3rem]"
+           x-text="aiTestRisposta"
+           aria-live="polite">
+      </div>
+      <p x-show="!aiDisponibile"
+         class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+        Ollama non disponibile — avvia il servizio per testare.
+      </p>
+    </div>
+
   </section>
 
 </div>
