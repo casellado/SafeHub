@@ -29,6 +29,7 @@ const PLACEHOLDER = (() => {
     'diario-cse':            'Diario CSE',
     'archivio-documenti':    'Archivio Documenti',
     'ods':                   'Ordini di Servizio',
+    'correttore-ai':         'Correttore CSE senior',
     'impostazioni':          'Impostazioni',
     'cestino':               'Cestino',
   };
