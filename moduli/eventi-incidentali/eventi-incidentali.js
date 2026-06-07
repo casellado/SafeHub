@@ -24,6 +24,31 @@
 
 'use strict';
 
+// ── Note normative — UI only, non compaiono in alcun documento ───────────────
+
+const NOTE_NORMATIVE_EVENTI = [
+  {
+    titolo: 'Obbligo di denuncia: è dell\'impresa, non del CSE (art. 18 D.Lgs. 81/08; art. 53 DPR 1124/65)',
+    testo:  'La denuncia/comunicazione di infortunio all\'INAIL spetta al datore di lavoro dell\'impresa, ' +
+            'non al CSE. La denuncia è dovuta per infortuni con prognosi superiore a 3 giorni (entro 2 giorni ' +
+            'dal certificato medico); in caso di morte o pericolo di morte, entro 24 ore. Questo registro ' +
+            'annota tali estremi a fini informativi, non li gestisce.',
+  },
+  {
+    titolo: 'Il ruolo del CSE',
+    testo:  'A fronte di un evento il CSE prende atto, valuta le ricadute sulla sicurezza del cantiere e ' +
+            'adotta le azioni di sua competenza: aggiornamento del PSC, coordinamento, contestazione, ' +
+            'eventuale proposta di sospensione. Documentare l\'evento e le proprie azioni è parte ' +
+            'dell\'attività di alta vigilanza.',
+  },
+  {
+    titolo: 'Near-miss e prevenzione',
+    testo:  'Anche gli eventi senza conseguenze (quasi-infortuni) andrebbero registrati: sono segnali ' +
+            'preziosi di un rischio non controllato. La loro analisi aiuta a prevenire l\'infortunio vero ' +
+            'e a verificare l\'adeguatezza delle misure del PSC.',
+  },
+];
+
 // ── Costanti e helper file ────────────────────────────────────────────────────
 
 const _SOGLIA_GRANDE_EV = 10 * 1024 * 1024;   // 10 MB — avviso non bloccante
@@ -116,6 +141,8 @@ function EventiIncidentali() {
 
     _cantiereId: null,
     noteAperte:  false,
+
+    get noteEventi() { return NOTE_NORMATIVE_EVENTI; },
 
     // ── Computed ─────────────────────────────────────────────────────────────
 
@@ -492,13 +519,12 @@ const _TEMPLATE_EI = `
     </div>
   </div>
 
-  <!-- NOTE NORMATIVE (pezzo c: placeholder, contenuto aggiunto con il hook diario) -->
+  <!-- NOTE NORMATIVE -->
   <div x-show="noteAperte" x-transition class="nota-normativa-panel mb-4" role="note">
-    <p class="text-xs text-sky-500 mb-1 italic">Promemoria per il CSE — non compare nel documento.</p>
-    <p class="text-sm text-sky-800">
-      Le note normative (art.18 D.Lgs.81/08, DPR 1124/65 — obblighi INAIL del datore di lavoro)
-      saranno aggiunte nel pezzo c insieme all'hook diario.
-    </p>
+    <p class="text-xs text-sky-500 mb-2 italic">Promemoria per il CSE — non compare nel documento.</p>
+    <template x-for="nota in noteEventi" :key="nota.titolo">
+      <div><h4 x-text="nota.titolo"></h4><p x-text="nota.testo"></p></div>
+    </template>
   </div>
 
   <!-- Nessun cantiere -->

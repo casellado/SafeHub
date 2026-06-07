@@ -149,6 +149,8 @@ const EVENTI_SERVICE = (() => {
     evento.aggiornato_il = new Date().toISOString();
     const dir = await _getDirFlat(evento.cantiere_id, true);
     await FILESYSTEM.scriviJson(dir, `${evento.id}.json`, evento);
+    // Hook diario — fire-and-forget: un errore qui non blocca mai la registrazione evento
+    _hookDiarioEventoCreato(evento).catch(e => console.warn('[diario] hook evento creato:', e));
     return evento;
   };
 
@@ -180,7 +182,12 @@ const EVENTI_SERVICE = (() => {
       throw new Error(`EVENTI_SERVICE: stato non valido: "${nuovoStato}"`);
     }
     if (evento.stato === nuovoStato) return evento;
-    return aggiorna({ ...evento, stato: nuovoStato });
+    const aggiornato = await aggiorna({ ...evento, stato: nuovoStato });
+    // Hook diario solo alla CHIUSURA — riapri/altri cambi non generano voci
+    if (nuovoStato === STATI.CHIUSO) {
+      _hookDiarioEventoChiuso(aggiornato).catch(e => console.warn('[diario] hook evento chiuso:', e));
+    }
+    return aggiornato;
   };
 
   // ── Leggi (flat + sottocartelle legacy) ─────────────────────────────────────
@@ -379,6 +386,55 @@ const EVENTI_SERVICE = (() => {
    * @returns {string[]}
    */
   const gravitaPerCategoria = (categoria) => GRAVITA[categoria] ?? [];
+
+  // ── Hook Diario CSE — best-effort (non bloccano mai l'operazione evento) ──────
+
+  /**
+   * Tenta di registrare la CREAZIONE di un evento nel Diario CSE.
+   * DATI SENSIBILI: propaga solo categoria, gravità, impresa e data —
+   * MAI persona coinvolta, CF o dati sanitari (la voce diario è un promemoria).
+   */
+  const _hookDiarioEventoCreato = async (evento) => {
+    if (typeof DIARIO_SERVICE === 'undefined') return;
+    const impresa  = _nomeImpresa(evento.impresa_id);
+    const soggetti = impresa ? [impresa] : [];
+    await DIARIO_SERVICE.creaVoceAuto({
+      cantiere_id: evento.cantiere_id,
+      tipo:        'EVENTO_INCIDENTALE',
+      titolo:      `Evento registrato — ${etichettaCategoria(evento.categoria)}`,
+      descrizione: [
+        `Categoria: ${etichettaCategoria(evento.categoria)}`,
+        `Gravità: ${etichettaGravita(evento.gravita, evento.categoria)}`,
+        impresa         ? `Impresa: ${impresa}`                          : null,
+        evento.data_ora ? `Data evento: ${UTILS.formatData(evento.data_ora)}` : null,
+      ].filter(Boolean).join('\n'),
+      soggetti,
+      riferimento: evento.id,
+    });
+  };
+
+  /**
+   * Tenta di registrare la CHIUSURA di un evento nel Diario CSE.
+   * Chiamata solo quando nuovoStato === 'chiuso'. Stessa regola dati sensibili.
+   */
+  const _hookDiarioEventoChiuso = async (evento) => {
+    if (typeof DIARIO_SERVICE === 'undefined') return;
+    const impresa  = _nomeImpresa(evento.impresa_id);
+    const soggetti = impresa ? [impresa] : [];
+    await DIARIO_SERVICE.creaVoceAuto({
+      cantiere_id: evento.cantiere_id,
+      tipo:        'EVENTO_INCIDENTALE',
+      titolo:      `Evento chiuso — ${etichettaCategoria(evento.categoria)}`,
+      descrizione: [
+        `Categoria: ${etichettaCategoria(evento.categoria)}`,
+        `Gravità: ${etichettaGravita(evento.gravita, evento.categoria)}`,
+        impresa ? `Impresa: ${impresa}` : null,
+        `Data chiusura: ${UTILS.formatData(new Date().toISOString())}`,
+      ].filter(Boolean).join('\n'),
+      soggetti,
+      riferimento: evento.id,
+    });
+  };
 
   // ── API pubblica ─────────────────────────────────────────────────────────────
 
