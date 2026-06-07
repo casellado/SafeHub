@@ -148,6 +148,7 @@ const FILESYSTEM = (() => {
       ['15_Anagrafica',                []],
       ['16_Foto',                      []],
       ['17_POS',                       []],
+      ['18_Archivio-Documenti',        []],
     ];
 
     for (const [nome, sub] of struttura) {
