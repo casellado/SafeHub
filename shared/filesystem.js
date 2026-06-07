@@ -136,7 +136,7 @@ const FILESYSTEM = (() => {
       ['03_Verifiche-POS',             ['Bozze', 'Protocollati']],
       ['04_Proposte-Sospensione-CSE',  ['Bozze', 'Protocollati']],
       ['05_Non-Conformita',            ['Aperte', 'In-Risoluzione', 'Chiuse']],
-      ['06_Eventi-Incidentali',        ['Bozze', 'Finalizzati']],
+      ['06_Eventi-Incidentali',        []],          // cartella piatta: stato nel record, non nella posizione file
       ['07_ODS-Inviati',               []],
       ['08_Diario-CSE',                []],
       ['09_Registro-PSC',              []],
