@@ -182,7 +182,7 @@ function CruscottoPrincipale() {
 
 // ── Template HTML ─────────────────────────────────────────────────────────────
 
-const _TEMPLATE_CRUSCOTTO = `
+const _TEMPLATE_CRUSCOTTO_OPERATIVO = `
 <div x-data="CruscottoPrincipale()" x-init="init()" x-effect="aggiornaSeCantiereRicambia()"
      class="max-w-5xl">
 
@@ -460,5 +460,5 @@ const _TEMPLATE_CRUSCOTTO = `
 
 window.MODULI_REGISTRATI = window.MODULI_REGISTRATI ?? {};
 window.MODULI_REGISTRATI['cruscotto'] = {
-  monta(contenitore) { contenitore.innerHTML = _TEMPLATE_CRUSCOTTO; },
+  monta(contenitore) { contenitore.innerHTML = _TEMPLATE_CRUSCOTTO_OPERATIVO; },
 };
