@@ -28,6 +28,7 @@ const PLACEHOLDER = (() => {
     'conformita-documenti':  'Conformità Documenti',
     'diario-cse':            'Diario CSE',
     'archivio-documenti':    'Archivio Documenti',
+    'ods':                   'Ordini di Servizio',
     'impostazioni':          'Impostazioni',
     'cestino':               'Cestino',
   };

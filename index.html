@@ -72,6 +72,7 @@
   <script src="moduli/registro-psc/registro-psc.js"></script>
   <script src="moduli/pos/pos.js"></script>
   <script src="moduli/archivio-documenti/archivio-documenti.js"></script>
+  <script src="moduli/ods/ods.js"></script>
   <script src="moduli/foto-cantiere/foto-cantiere.js"></script>
   <script src="moduli/cestino/cestino.js"></script>
 </head>
@@ -369,6 +370,11 @@
                 :class="{'attiva': $store.app.moduloAttivo === 'disposizione-rl'}"
                 :aria-current="$store.app.moduloAttivo === 'disposizione-rl' ? 'page' : null">
           <span aria-hidden="true">📋</span> Disposizione RL
+        </button>
+        <button class="nav-voce" @click="navigaA('ods')"
+                :class="{'attiva': $store.app.moduloAttivo === 'ods'}"
+                :aria-current="$store.app.moduloAttivo === 'ods' ? 'page' : null">
+          <span aria-hidden="true">📋</span> Ordini di Servizio
         </button>
         <button class="nav-voce" @click="navigaA('verifica-pos')"
                 :class="{'attiva': $store.app.moduloAttivo === 'verifica-pos'}"
