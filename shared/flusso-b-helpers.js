@@ -41,6 +41,48 @@ function _scalafirma(src, cW = 210, cH = 80) {
   });
 }
 
+/**
+ * Ridimensiona un file immagine preservando le proporzioni.
+ * Non ingrandisce mai oltre le dimensioni originali.
+ * Restituisce sempre JPEG (anche se input è PNG) per contenere il peso.
+ * Riduzione tipica: 5 MB smartphone → ~300 KB.
+ *
+ * Usata dal modulo Foto Cantiere; pattern analogo a _scalafirma.
+ *
+ * @param {File}   file              - File immagine (JPEG / PNG)
+ * @param {number} [maxLato=1920]    - Lato massimo in pixel (width e height)
+ * @param {number} [qualita=0.80]    - Qualità JPEG 0–1
+ * @returns {Promise<{base64: string, larghezza_px: number, altezza_px: number}>}
+ */
+function _ridimensionaFoto(file, maxLato = 1920, qualita = 0.80) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Lettura immagine non riuscita'));
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Formato immagine non riconosciuto'));
+      img.onload = () => {
+        const origW = img.naturalWidth;
+        const origH = img.naturalHeight;
+        // Non superare maxLato in nessuna dimensione; non ingrandire mai
+        const r  = Math.min(1, maxLato / Math.max(origW, origH));
+        const w  = Math.max(1, Math.round(origW * r));
+        const h  = Math.max(1, Math.round(origH * r));
+        const cv = document.createElement('canvas');
+        cv.width = w; cv.height = h;
+        cv.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve({
+          base64:       cv.toDataURL('image/jpeg', qualita),
+          larghezza_px: w,
+          altezza_px:   h,
+        });
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 /** Legge un File come data-URL base64. */
 function _leggiBase64(file) {
   return new Promise((res, rej) => {

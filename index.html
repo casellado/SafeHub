@@ -72,6 +72,7 @@
   <script src="moduli/registro-psc/registro-psc.js"></script>
   <script src="moduli/pos/pos.js"></script>
   <script src="moduli/archivio-documenti/archivio-documenti.js"></script>
+  <script src="moduli/foto-cantiere/foto-cantiere.js"></script>
   <script src="moduli/cestino/cestino.js"></script>
 </head>
 
@@ -396,6 +397,11 @@
                 :class="{'attiva': $store.app.moduloAttivo === 'archivio-documenti'}"
                 :aria-current="$store.app.moduloAttivo === 'archivio-documenti' ? 'page' : null">
           <span aria-hidden="true">🗂</span> Archivio Documenti
+        </button>
+        <button class="nav-voce" @click="navigaA('foto-cantiere')"
+                :class="{'attiva': $store.app.moduloAttivo === 'foto-cantiere'}"
+                :aria-current="$store.app.moduloAttivo === 'foto-cantiere' ? 'page' : null">
+          <span aria-hidden="true">📷</span> Foto Cantiere
         </button>
         <button class="nav-voce" @click="navigaA('impostazioni')"
                 :class="{'attiva': $store.app.moduloAttivo === 'impostazioni'}"

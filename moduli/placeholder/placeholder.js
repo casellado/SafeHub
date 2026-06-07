@@ -21,6 +21,7 @@ const PLACEHOLDER = (() => {
     'enti-terzi':            'Enti Terzi',
     'non-conformita':        'Non Conformità',
     'eventi-incidentali':    'Eventi Incidentali',
+    'foto-cantiere':         'Foto Cantiere',
     'verifica-pos':          'Verifica POS / ITP',
     'proposte-sospensione':  'Proposte di Sospensione CSE',
     'pos':                   'POS Imprese',
