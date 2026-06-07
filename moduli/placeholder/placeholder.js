@@ -23,7 +23,7 @@ const PLACEHOLDER = (() => {
     'eventi-incidentali':    'Eventi Incidentali',
     'verifica-pos':          'Verifica POS / ITP',
     'proposte-sospensione':  'Proposte di Sospensione CSE',
-    'sospensioni-rl':        'Sospensioni del RL',
+    'pos':                   'POS Imprese',
     'conformita-documenti':  'Conformità Documenti',
     'diario-cse':            'Diario CSE',
     'archivio-documenti':    'Archivio Documenti',

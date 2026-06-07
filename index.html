@@ -68,6 +68,7 @@
   <script src="moduli/non-conformita/non-conformita.js"></script>
   <script src="moduli/diario-cse/diario-cse.js"></script>
   <script src="moduli/registro-psc/registro-psc.js"></script>
+  <script src="moduli/pos/pos.js"></script>
   <script src="moduli/cestino/cestino.js"></script>
 </head>
 
@@ -282,6 +283,12 @@
                 :aria-current="$store.app.moduloAttivo === 'registro-psc' ? 'page' : null">
           <span aria-hidden="true">📄</span> Registro PSC
         </button>
+        <button class="nav-voce"
+                @click="navigaA('pos')"
+                :class="{'attiva': $store.app.moduloAttivo === 'pos'}"
+                :aria-current="$store.app.moduloAttivo === 'pos' ? 'page' : null">
+          <span aria-hidden="true">📋</span> POS imprese
+        </button>
 
         <!-- ANAGRAFICHE -->
         <div class="nav-sezione" role="presentation">Anagrafiche</div>
@@ -368,11 +375,6 @@
                 :class="{'attiva': $store.app.moduloAttivo === 'verifica-itp'}"
                 :aria-current="$store.app.moduloAttivo === 'verifica-itp' ? 'page' : null">
           <span aria-hidden="true">📋</span> Verifica ITP
-        </button>
-        <button class="nav-voce" @click="navigaA('sospensioni-rl')"
-                :class="{'attiva': $store.app.moduloAttivo === 'sospensioni-rl'}"
-                :aria-current="$store.app.moduloAttivo === 'sospensioni-rl' ? 'page' : null">
-          <span aria-hidden="true">📥</span> Sospensioni RL
         </button>
         <button class="nav-voce" @click="navigaA('verbale-sopralluogo')"
                 :class="{'attiva': $store.app.moduloAttivo === 'verbale-sopralluogo'}"
