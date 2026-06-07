@@ -36,6 +36,23 @@ const TAG_INTEGRAZIONI_POS = [
   { valore: 'altro',                     etichetta: 'Altro' },
 ];
 
+// ── Note normative POS ────────────────────────────────────────────────────────
+
+const NOTE_NORMATIVE_POS = [
+  {
+    titolo: "Cos’è il POS (art. 89 c.1 lett. h; art. 96; Allegato XV 3.2.1)",
+    testo:  "Il POS è redatto da ciascuna impresa esecutrice in riferimento al singolo cantiere. Descrive le lavorazioni dell’impresa, le misure di sicurezza adottate, attrezzature, sostanze e gestione delle emergenze. È obbligatorio per ogni impresa esecutrice (non per i meri fornitori).",
+  },
+  {
+    titolo: "Rapporto col PSC",
+    testo:  "Il POS è di dettaglio e integrativo del PSC e deve essere coerente con esso: individua le misure integrative e le procedure complementari rispetto alle prescrizioni del PSC. Il confronto tra PSC e POS è un controllo centrale del CSE.",
+  },
+  {
+    titolo: "Verifica del CSE (art. 92 c.1 lett. b)",
+    testo:  "Il CSE verifica l’idoneità del POS, assicurandone la coerenza col PSC, prima dell’inizio dei lavori dell’impresa. Le verifiche e i loro esiti vanno documentati.",
+  },
+];
+
 /** Soglia file grande: avviso gentile non bloccante sopra 10 MB. */
 const _SOGLIA_FILE_POS = 10 * 1024 * 1024;
 
@@ -422,6 +439,7 @@ function RegistroPOS() {
     // ── Stato ────────────────────────────────────────────────────────────────
     sezioneAttiva:  'corpus',
     _cantiereId:    null,
+    noteAperte:     false,
 
     // Selettore impresa
     impresaSelezionata: null,  // { id, ragioneSociale }
@@ -482,6 +500,8 @@ function RegistroPOS() {
     exportIntA:           '',
 
     // ── Computed ──────────────────────────────────────────────────────────────
+
+    get notePos() { return NOTE_NORMATIVE_POS; },
 
     get imprese() {
       return ANAGRAFICA_SERVICE.get('imprese') ?? [];
@@ -1117,7 +1137,14 @@ const _TEMPLATE_POS = `
       <h1 class="text-xl font-semibold text-slate-800">📋 POS Imprese</h1>
       <p class="text-xs text-slate-400 mt-0.5">Piano Operativo di Sicurezza — per impresa (art. 96 D.Lgs 81/08)</p>
     </div>
-    <div class="flex gap-2">
+    <div class="flex items-center gap-2">
+      <button @click="noteAperte = !noteAperte"
+              :aria-expanded="String(noteAperte)"
+              class="text-xs text-sky-700 bg-sky-50 border border-sky-200
+                     px-2.5 py-1 rounded-full hover:bg-sky-100 transition-colors
+                     focus:outline-none focus:ring-2 focus:ring-sky-400">
+        &#x2139; Note normative
+      </button>
       <button @click="apriNuovoDoc()"
               x-show="$store.cantiere.id && impresaSelezionata && sezioneAttiva === 'corpus'"
               class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium
@@ -1133,6 +1160,14 @@ const _TEMPLATE_POS = `
         + Nuova integrazione
       </button>
     </div>
+  </div>
+
+  <!-- NOTE NORMATIVE -->
+  <div x-show="noteAperte" x-transition class="nota-normativa-panel mb-4" role="note">
+    <p class="text-xs text-sky-500 mb-2 italic">Promemoria per il CSE — non compare nel documento.</p>
+    <template x-for="nota in notePos" :key="nota.titolo">
+      <div><h4 x-text="nota.titolo"></h4><p x-text="nota.testo"></p></div>
+    </template>
   </div>
 
   <!-- Nessun cantiere -->

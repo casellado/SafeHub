@@ -40,6 +40,23 @@ const TAG_INTEGRAZIONI = [
   { valore: 'altro',                    etichetta: 'Altro' },
 ];
 
+// ── Note normative PSC ────────────────────────────────────────────────────────
+
+const NOTE_NORMATIVE_PSC = [
+  {
+    titolo: "Cos’è il PSC (art. 100; Allegato XV)",
+    testo:  "Il PSC è il documento, redatto in fase di progetto, che analizza i rischi del cantiere e definisce le misure di prevenzione. È composto da relazione tecnica, prescrizioni, tavole e planimetria di cantiere, cronoprogramma e stima dei costi della sicurezza. È parte integrante del contratto d’appalto.",
+  },
+  {
+    titolo: "Aggiornamento e vigilanza (art. 92; art. 97)",
+    testo:  "Il PSC si aggiorna in funzione dell’evoluzione dei lavori; gli aggiornamenti vanno trasmessi alle imprese. Il CSE verifica costantemente che le imprese applichino le prescrizioni del PSC. Le integrazioni qui registrate documentano questa evoluzione nel tempo.",
+  },
+  {
+    titolo: "Custodia",
+    testo:  "Il PSC e i suoi aggiornamenti devono essere custoditi in cantiere e messi a disposizione delle imprese e degli organi di vigilanza.",
+  },
+];
+
 /** Soglia file grande: avviso gentile non bloccante sopra 10 MB. */
 const _SOGLIA_FILE_GRANDE = 10 * 1024 * 1024;
 
@@ -453,6 +470,7 @@ function RegistroPsc() {
     // ── Stato sezione corrente ───────────────────────────────────────────────
     sezioneAttiva: 'corpus',    // 'corpus' | 'integrazioni'
     _cantiereId:   null,
+    noteAperte:    false,
 
     // ── Sezione 1 — Corpus PSC ────────────────────────────────────────────────
     corpus:            null,
@@ -510,6 +528,8 @@ function RegistroPsc() {
     exportIntA:            '',
 
     // ── Computed ─────────────────────────────────────────────────────────────
+
+    get notePsc() { return NOTE_NORMATIVE_PSC; },
 
     get documentiAttivi() {
       return (this.corpus?.documenti ?? []).filter(d => !d._cestino);
@@ -1091,7 +1111,14 @@ const _TEMPLATE_REGISTRO_PSC = `
       <h1 class="text-xl font-semibold text-slate-800">📄 Registro PSC</h1>
       <p class="text-xs text-slate-400 mt-0.5">Piano di Sicurezza e Coordinamento — corpus documenti e integrazioni</p>
     </div>
-    <div class="flex gap-2">
+    <div class="flex items-center gap-2">
+      <button @click="noteAperte = !noteAperte"
+              :aria-expanded="String(noteAperte)"
+              class="text-xs text-sky-700 bg-sky-50 border border-sky-200
+                     px-2.5 py-1 rounded-full hover:bg-sky-100 transition-colors
+                     focus:outline-none focus:ring-2 focus:ring-sky-400">
+        &#x2139; Note normative
+      </button>
       <button @click="apriNuovoDoc()"
               x-show="$store.cantiere.id && sezioneAttiva === 'corpus'"
               class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium
@@ -1107,6 +1134,14 @@ const _TEMPLATE_REGISTRO_PSC = `
         + Nuova integrazione
       </button>
     </div>
+  </div>
+
+  <!-- NOTE NORMATIVE -->
+  <div x-show="noteAperte" x-transition class="nota-normativa-panel mb-4" role="note">
+    <p class="text-xs text-sky-500 mb-2 italic">Promemoria per il CSE — non compare nel documento.</p>
+    <template x-for="nota in notePsc" :key="nota.titolo">
+      <div><h4 x-text="nota.titolo"></h4><p x-text="nota.testo"></p></div>
+    </template>
   </div>
 
   <!-- Nessun cantiere -->
