@@ -2,7 +2,7 @@
  * cantieri.js — Modulo M3: Gestione Cantieri.
  *
  * Due viste registrate:
- *  - MODULI_REGISTRATI['cruscotto']          → Cruscotto: lista cantieri, vista d'ingresso
+ *  - MODULI_REGISTRATI['gestione-cantieri']   → Cruscotto: lista cantieri, crea/seleziona
  *  - MODULI_REGISTRATI['anagrafica-cantiere'] → SchedaCantiere: editor dati del lotto corrente
  *
  * Dipende da CANTIERI_SERVICE (crea/aggiorna/archivia) e dagli store M1
@@ -511,10 +511,10 @@ const _TEMPLATE_SCHEDA = `
     <div class="text-4xl mb-3" aria-hidden="true">🏗</div>
     <p class="text-slate-600 font-medium mb-2">Nessun cantiere selezionato</p>
     <p class="text-sm mb-4">Seleziona un cantiere dal cruscotto per modificarne i dati.</p>
-    <button @click="navigaA('cruscotto')"
+    <button @click="navigaA('gestione-cantieri')"
             class="text-sm text-blue-600 underline hover:no-underline
                    focus:outline-none focus:ring-2 focus:ring-blue-500 rounded">
-      Vai al cruscotto cantieri
+      Vai alla lista cantieri
     </button>
   </div>
 
@@ -983,7 +983,7 @@ const _TEMPLATE_SCHEDA = `
 
 window.MODULI_REGISTRATI = window.MODULI_REGISTRATI ?? {};
 
-window.MODULI_REGISTRATI['cruscotto'] = {
+window.MODULI_REGISTRATI['gestione-cantieri'] = {
   monta(contenitore) {
     contenitore.innerHTML = _TEMPLATE_CRUSCOTTO;
     // MutationObserver di Alpine processa automaticamente il nuovo nodo

@@ -203,8 +203,22 @@ const _TEMPLATE_CRUSCOTTO_OPERATIVO = `
     </div>
   </div>
 
-  <!-- Nessun cantiere -->
-  <div x-show="!$store.cantiere.id" class="placeholder-modulo">
+  <!-- Nessun cantiere — installazione nuova: invito a creare il primo -->
+  <div x-show="!$store.cantiere.id && $store.cantieri.lista.filter(c => c.stato !== 'cestinato').length === 0"
+       class="placeholder-modulo">
+    <div class="text-3xl mb-3" aria-hidden="true">🏗</div>
+    <p class="font-medium text-slate-700 mb-1">Nessun cantiere ancora.</p>
+    <p class="text-sm text-slate-500 mb-4">Crea il primo cantiere per iniziare a lavorare.</p>
+    <button @click="navigaA('gestione-cantieri')"
+            class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium
+                   px-5 py-2 rounded-lg transition-colors
+                   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+      + Crea il tuo primo cantiere
+    </button>
+  </div>
+  <!-- Cantieri presenti ma nessuno selezionato -->
+  <div x-show="!$store.cantiere.id && $store.cantieri.lista.filter(c => c.stato !== 'cestinato').length > 0"
+       class="placeholder-modulo">
     <div class="text-3xl" aria-hidden="true">🏗</div>
     <p class="text-slate-500">Seleziona un cantiere per vedere il cruscotto operativo.</p>
   </div>
