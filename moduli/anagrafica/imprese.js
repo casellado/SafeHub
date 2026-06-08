@@ -235,7 +235,7 @@ function ListaImprese() {
         this.formDati.documenti[idx] = { ...this.formDati.documenti[idx], _cestino: true, _eliminato_il: new Date().toISOString() };
       }
 
-      this.formDati.documenti.push({ tipo, scadenza: null, filename: file.name, base64 });
+      this.formDati.documenti.push({ tipo, data_rilascio: null, scadenza: null, filename: file.name, base64 });
       this.formDati = { ...this.formDati };   // trigger reattività Alpine
       this.modificatoDopoCaricamento = true;
     },
@@ -252,6 +252,19 @@ function ListaImprese() {
 
     getDocumento(tipo) {
       return this.formDati.documenti?.find(d => d.tipo === tipo && !d._cestino) ?? null;
+    },
+
+    // Scadenza-da-rilascio: propone scadenza solo se il campo è ancora vuoto.
+    onDocRilascioChange(tipo, data) {
+      const doc = this.getDocumento(tipo);
+      if (!doc) return;
+      doc.data_rilascio = data || null;
+      if (data && !doc.scadenza) {
+        const p = DURATE_DOCUMENTI.calcolaScadenzaProposta(tipo, data);
+        if (p) doc.scadenza = p.scadenza;
+      }
+      this.formDati = { ...this.formDati };
+      this.modificatoDopoCaricamento = true;
     },
 
     // Ritorna 'obbligatorio'|'condizionato'|'non_pertinente' per il tipo documento
@@ -894,13 +907,28 @@ const _TEMPLATE_IMPRESE = `
                                 title="Scarica"
                                 :aria-label="'Scarica ' + docDef.label">⬇</button>
 
-                        <div class="flex items-center gap-1">
+                        <template x-if="DURATE_DOCUMENTI.hasDurata(docDef.tipo)">
+                          <div class="flex items-center gap-1">
+                            <label :for="'rilascio-' + docDef.tipo" class="text-xs text-slate-400">Rilascio:</label>
+                            <input :id="'rilascio-' + docDef.tipo" type="date"
+                                   :value="getDocumento(docDef.tipo)?.data_rilascio ?? ''"
+                                   @input="onDocRilascioChange(docDef.tipo, $event.target.value)"
+                                   class="border border-slate-200 rounded px-2 py-0.5 text-xs
+                                          focus:outline-none focus:ring-2 focus:ring-blue-500">
+                          </div>
+                        </template>
+                        <div class="flex items-center gap-1 flex-wrap">
                           <label :for="'scad-' + docDef.tipo" class="text-xs text-slate-400">Scadenza:</label>
                           <input :id="'scad-' + docDef.tipo" type="date"
                                  :value="getDocumento(docDef.tipo)?.scadenza ?? ''"
                                  @input="getDocumento(docDef.tipo).scadenza = $event.target.value || null; formDati = {...formDati}"
                                  class="border border-slate-200 rounded px-2 py-0.5 text-xs
                                         focus:outline-none focus:ring-2 focus:ring-blue-500">
+                          <span x-show="getDocumento(docDef.tipo)?.data_rilascio && DURATE_DOCUMENTI.hasDurata(docDef.tipo)"
+                                :class="DURATE_DOCUMENTI.certezza(docDef.tipo) === 'certa' ? 'text-blue-500' : 'text-amber-500'"
+                                class="text-xs"
+                                x-text="DURATE_DOCUMENTI.nota(docDef.tipo)">
+                          </span>
                         </div>
                         <button @click="cestinaDocumento(docDef.tipo)"
                                 class="text-xs text-red-400 hover:text-red-600 underline

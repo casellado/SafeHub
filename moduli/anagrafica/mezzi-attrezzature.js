@@ -20,9 +20,62 @@ const _leggiFileBase64MA = (file) =>
 
 // ── Componente Alpine ────────────────────────────────────────────────────────
 
+// ── Note documenti tipicamente attesi — mezzi e attrezzature (UI-only, non entra in export) ──
+const NOTE_DOCUMENTI_MEZZO = [
+  {
+    titolo: 'Marcatura CE e conformità',
+    testo:  'Marcatura CE e dichiarazione di conformità CE (di norma nel libretto). ' +
+            'Per apparecchi anteriori al 1996, libretto di omologazione.',
+  },
+  {
+    titolo: 'Libretto uso e manutenzione',
+    testo:  'Libretto d\'uso e manutenzione con registro di controllo allegato.',
+  },
+  {
+    titolo: 'Verifiche periodiche',
+    testo:  'Verbali delle verifiche periodiche. Cadenza annuale per gru e sollevamento; ' +
+            'per le altre attrezzature secondo Allegato VII D.Lgs. 81/2008.',
+  },
+  {
+    titolo: 'Apparecchi di sollevamento > 200 kg',
+    testo:  'Denuncia di installazione INAIL, richiesta di verifica periodica, ' +
+            'verifica trimestrale di funi, catene e ganci.',
+  },
+  {
+    titolo: 'Controllo iniziale al montaggio',
+    testo:  'Documento di controllo iniziale dopo ogni montaggio in nuovo cantiere o nuova postazione.',
+  },
+];
+
+const NOTE_DOCUMENTI_ATTREZZATURA = [
+  {
+    titolo: 'Marcatura CE e conformità',
+    testo:  'Marcatura CE e dichiarazione di conformità CE.',
+  },
+  {
+    titolo: 'Libretto uso e manutenzione',
+    testo:  'Libretto d\'uso e manutenzione dell\'attrezzatura.',
+  },
+  {
+    titolo: 'Verifiche periodiche',
+    testo:  'Verbali delle verifiche periodiche secondo il tipo di attrezzatura ' +
+            '(Allegato VII D.Lgs. 81/2008).',
+  },
+  {
+    titolo: 'Ponteggi',
+    testo:  'PiMUS (piano di montaggio, uso e smontaggio), libretto/autorizzazione ministeriale ' +
+            'e relazione tecnica del fabbricante.',
+  },
+  {
+    titolo: 'PLE (piattaforme elevabili)',
+    testo:  'Libretto delle verifiche, dichiarazione di conformità CE, registro di controllo compilato.',
+  },
+];
+
 function ListaMezziAttrezzature() {
   return {
-    tabAttiva: 'mezzi',
+    tabAttiva:   'mezzi',
+    noteAperte:  false,
 
     // Dati
     mezzi: [], attrezzature: [], imprese: [],
@@ -534,6 +587,33 @@ function ListaMezziAttrezzature() {
     tipoVerMezzoInLista(v)  { return ANAGRAFICA_SERVICE.TIPI_VERIFICA_MEZZO.some(t => t.valore === v); },
     tipoVerAttInLista(v)    { return ANAGRAFICA_SERVICE.TIPI_VERIFICA_ATT.some(t => t.valore === v); },
 
+    // Restituisce le note pertinenti al tab attivo
+    get noteAttive() {
+      return this.tabAttiva === 'mezzi' ? NOTE_DOCUMENTI_MEZZO : NOTE_DOCUMENTI_ATTREZZATURA;
+    },
+
+    // ── Scadenza-da-rilascio (verifiche) ─────────────────────────────────────
+
+    // Data eseguita → propone prossima verifica mezzo se ancora vuota.
+    onVerMezzoDataChange(vp, data) {
+      vp.data = data || null;
+      if (data && !vp.prossima) {
+        const p = DURATE_DOCUMENTI.calcolaScadenzaProposta('verifica_mezzo', data);
+        if (p) vp.prossima = p.scadenza;
+      }
+      this.formMezzo = { ...this.formMezzo };
+    },
+
+    // Data eseguita → propone prossima verifica attrezzatura se ancora vuota.
+    onVerAttDataChange(v, data) {
+      v.data = data || null;
+      if (data && !v.prossima) {
+        const p = DURATE_DOCUMENTI.calcolaScadenzaProposta('verifica_attrezzatura', data);
+        if (p) v.prossima = p.scadenza;
+      }
+      this.formAtt = { ...this.formAtt };
+    },
+
     _tipiMezzo()       { return ANAGRAFICA_SERVICE.TIPI_MEZZO; },
     _tipiAtt()         { return ANAGRAFICA_SERVICE.TIPOLOGIE_ATTREZZATURA; },
     _tipiVerMezzo()    { return ANAGRAFICA_SERVICE.TIPI_VERIFICA_MEZZO; },
@@ -549,7 +629,7 @@ const _TEMPLATE_MA = `
 <div x-data="ListaMezziAttrezzature()" x-init="init()" x-effect="aggiornaSeCantiereRicambia()" class="max-w-5xl">
 
   <!-- Tab bar -->
-  <div class="flex items-center gap-2 mb-5">
+  <div class="flex items-center gap-2 mb-3">
     <div role="tablist" class="flex gap-1 border-b border-slate-200 flex-1">
       <button role="tab" :aria-selected="tabAttiva==='mezzi'" @click="tabAttiva='mezzi'"
               :class="tabAttiva==='mezzi' ? 'border-b-2 border-blue-600 text-blue-700 font-semibold -mb-px bg-white px-4 py-2 text-sm rounded-t' : 'text-slate-500 hover:text-slate-800 px-4 py-2 text-sm rounded-t transition-colors'">
@@ -564,10 +644,34 @@ const _TEMPLATE_MA = `
               x-text="'(' + contatoriAtt.totale + ')'"></span>
       </button>
     </div>
-    <button @click="tabAttiva==='mezzi' ? nuovoMezzoFn() : nuovaAttFn()" x-show="$store.cantiere.id"
-            class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-      <span x-text="tabAttiva==='mezzi' ? '+ Nuovo mezzo' : '+ Nuova attrezzatura'"></span>
-    </button>
+    <div class="flex items-center gap-2 flex-shrink-0">
+      <button @click="noteAperte = !noteAperte"
+              :aria-expanded="String(noteAperte)"
+              class="flex items-center gap-1 text-xs text-sky-700 bg-sky-50 border border-sky-200
+                     px-2.5 py-1 rounded-full hover:bg-sky-100 transition-colors
+                     focus:outline-none focus:ring-2 focus:ring-sky-400"
+              title="Documenti tipicamente attesi — aiuto-memoria, non vincolante">
+        &#x2139; Documenti attesi
+      </button>
+      <button @click="tabAttiva==='mezzi' ? nuovoMezzoFn() : nuovaAttFn()" x-show="$store.cantiere.id"
+              class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+        <span x-text="tabAttiva==='mezzi' ? '+ Nuovo mezzo' : '+ Nuova attrezzatura'"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Pannello documenti attesi (UI-only, non entra in nessun export) -->
+  <div x-show="noteAperte" x-transition class="nota-normativa-panel mb-4"
+       role="note" :aria-label="'Documenti tipicamente attesi — ' + (tabAttiva === 'mezzi' ? 'mezzi' : 'attrezzature')">
+    <p class="text-xs text-sky-500 mb-2 italic">
+      Promemoria per il CSE — elenco indicativo, non esaustivo né vincolante.
+    </p>
+    <template x-for="nota in noteAttive" :key="nota.titolo">
+      <div>
+        <h4 x-text="nota.titolo"></h4>
+        <p x-text="nota.testo"></p>
+      </div>
+    </template>
   </div>
 
   <div x-show="!$store.cantiere.id" class="placeholder-modulo">
@@ -865,12 +969,16 @@ const _TEMPLATE_MA = `
                   <input x-show="!tipoVerMezzoInLista(vp.tipo)" type="text" :value="vp.tipo" @input="vp.tipo=$event.target.value;formMezzo={...formMezzo}" placeholder="Descrivi la verifica" class="mt-1.5 w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div><label class="block text-xs text-slate-500 mb-1">Ente verificatore</label><input type="text" :value="vp.ente??''" @input="vp.ente=$event.target.value;formMezzo={...formMezzo}" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
-                <div><label class="block text-xs text-slate-500 mb-1">Data eseguita</label><input type="date" :value="vp.data??''" @input="vp.data=$event.target.value||null;formMezzo={...formMezzo}" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div><label class="block text-xs text-slate-500 mb-1">Data eseguita</label><input type="date" :value="vp.data??''" @input="vp.data=$event.target.value||null;formMezzo={...formMezzo}" @change="onVerMezzoDataChange(vp,$event.target.value)" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
                 <div>
                   <label class="block text-xs text-slate-500 mb-1">Prossima verifica 🔴</label>
                   <input type="date" :value="vp.prossima??''" @input="vp.prossima=$event.target.value||null;formMezzo={...formMezzo}"
                          class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
                          :class="vp.prossima && UTILS.giorniAllaScadenza(vp.prossima)<0?'border-red-400 bg-red-50':''">
+                  <p x-show="vp.data"
+                     class="text-xs mt-0.5 text-amber-600"
+                     x-text="DURATE_DOCUMENTI.nota('verifica_mezzo')">
+                  </p>
                 </div>
               </div>
               <label class="cursor-pointer text-xs text-blue-600 hover:text-blue-800">
@@ -1173,8 +1281,15 @@ const _TEMPLATE_MA = `
                   </select>
                   <input x-show="!tipoVerAttInLista(v.tipo)" type="text" :value="v.tipo" @input="v.tipo=$event.target.value;formAtt={...formAtt}" placeholder="Tipo verifica" class="mt-1.5 w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
-                <div><label class="block text-xs text-slate-500 mb-1">Data eseguita</label><input type="date" :value="v.data??''" @input="v.data=$event.target.value||null;formAtt={...formAtt}" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
-                <div><label class="block text-xs text-slate-500 mb-1">Prossima verifica</label><input type="date" :value="v.prossima??''" @input="v.prossima=$event.target.value||null;formAtt={...formAtt}" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div><label class="block text-xs text-slate-500 mb-1">Data eseguita</label><input type="date" :value="v.data??''" @input="v.data=$event.target.value||null;formAtt={...formAtt}" @change="onVerAttDataChange(v,$event.target.value)" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                <div>
+                  <label class="block text-xs text-slate-500 mb-1">Prossima verifica</label>
+                  <input type="date" :value="v.prossima??''" @input="v.prossima=$event.target.value||null;formAtt={...formAtt}" class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <p x-show="v.data"
+                     class="text-xs mt-0.5 text-amber-600"
+                     x-text="DURATE_DOCUMENTI.nota('verifica_attrezzatura')">
+                  </p>
+                </div>
               </div>
               <label class="cursor-pointer text-xs text-blue-600 hover:text-blue-800">
                 <input type="file" accept=".pdf,.png,.jpg" class="sr-only" @change="onVerificaAttFile(v.id,$event)">

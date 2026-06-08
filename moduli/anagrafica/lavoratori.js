@@ -20,6 +20,41 @@ const _leggiFileBase64Lav = (file) =>
 
 // ── Componente Alpine ────────────────────────────────────────────────────────
 
+// ── Note documenti tipicamente attesi — lavoratori (UI-only, non entra in export) ──
+const NOTE_DOCUMENTI_LAVORATORE = [
+  {
+    titolo: 'Idoneità sanitaria',
+    testo:  'Giudizio di idoneità alla mansione rilasciato dal medico competente a seguito di visita ' +
+            '(art. 41 D.Lgs. 81/2008). Periodicità stabilita dal medico competente.',
+  },
+  {
+    titolo: 'Formazione e informazione',
+    testo:  'Attestati di formazione, informazione e addestramento relativi alla mansione e ai rischi ' +
+            'specifici (art. 37 D.Lgs. 81/2008). Aggiornamento tipicamente quinquennale.',
+  },
+  {
+    titolo: 'Consegna DPI',
+    testo:  'Attestazione di avvenuta consegna dei dispositivi di protezione individuale ' +
+            '(art. 18 c.1 lett. d D.Lgs. 81/2008).',
+  },
+  {
+    titolo: 'Tessera di riconoscimento / badge di cantiere',
+    testo:  'Tessera di riconoscimento con foto e generalità (art. 18/21 D.Lgs. 81/2008). ' +
+            'Dal D.L. 159/2025 è introdotto il badge di cantiere che potenzia e sostituisce il tesserino ' +
+            '— verificare lo stato di applicazione.',
+  },
+  {
+    titolo: 'Abilitazioni per attrezzature specifiche',
+    testo:  'Per mansioni che richiedono attrezzature soggette ad abilitazione (gru, PLE, macchine ' +
+            'movimento terra, ecc.): attestato di abilitazione e relativa idoneità sanitaria.',
+  },
+  {
+    titolo: 'Lavoratori autonomi',
+    testo:  'Per gli autonomi, anche: idoneità tecnico-professionale, DURC, ed eventuale patente a ' +
+            'crediti (D.L. 19/2024).',
+  },
+];
+
 function ListaLavoratori() {
   return {
     // Lista
@@ -29,6 +64,7 @@ function ListaLavoratori() {
     cercaTesto:      '',
     filtroImpresaId: '',
     mostraCestino:   false,
+    noteAperte:      false,
 
     // Drawer
     drawerAperto:              false,
@@ -203,7 +239,7 @@ function ListaLavoratori() {
       if (!this.formDati.abilitazioni) this.formDati.abilitazioni = [];
       this.formDati.abilitazioni.push({
         id: UTILS.generaId('abi'),
-        tipo: '', numero: '', scadenza: null, filename: null, base64: null,
+        tipo: '', numero: '', data_rilascio: null, scadenza: null, filename: null, base64: null,
       });
       this.formDati = { ...this.formDati };
       this.modificatoDopoCaricamento = true;
@@ -435,6 +471,43 @@ function ListaLavoratori() {
     // Espone la lista al template Alpine (non può accedere a variabili di modulo direttamente)
     _tipiAbilitazione() { return ANAGRAFICA_SERVICE.TIPI_ABILITAZIONE_OPERATORE; },
     _imprese()          { return this.imprese; },
+    get noteLav()       { return NOTE_DOCUMENTI_LAVORATORE; },
+
+    // ── Scadenza-da-rilascio ──────────────────────────────────────────────────
+
+    // Visita medica: il campo 'data' (data visita) già esiste — aggiunge @change per la proposta.
+    onVmDataChange(data) {
+      if (data && !(this.formDati.visitaMedica?.scadenza)) {
+        const p = DURATE_DOCUMENTI.calcolaScadenzaProposta('visita_medica', data);
+        if (p) {
+          (this.formDati.visitaMedica ??= {}).scadenza = p.scadenza;
+          this.formDati = { ...this.formDati };
+        }
+      }
+      this.modificatoDopoCaricamento = true;
+    },
+
+    // Attestato formazione: aggiunge data_rilascio (campo nuovo — retrocompat. ok).
+    onAfRilascioChange(data) {
+      (this.formDati.attestatoFormazione ??= {}).data_rilascio = data || null;
+      if (data && !(this.formDati.attestatoFormazione.scadenza)) {
+        const p = DURATE_DOCUMENTI.calcolaScadenzaProposta('formazione', data);
+        if (p) this.formDati.attestatoFormazione.scadenza = p.scadenza;
+      }
+      this.formDati = { ...this.formDati };
+      this.modificatoDopoCaricamento = true;
+    },
+
+    // Abilitazione: aggiunge data_rilascio (campo nuovo — retrocompat. ok).
+    onAbRilascioChange(ab, data) {
+      ab.data_rilascio = data || null;
+      if (data && !ab.scadenza) {
+        const p = DURATE_DOCUMENTI.calcolaScadenzaProposta('abilitazione', data);
+        if (p) ab.scadenza = p.scadenza;
+      }
+      this.formDati = { ...this.formDati };
+      this.modificatoDopoCaricamento = true;
+    },
   };
 }
 
@@ -444,19 +517,43 @@ const _TEMPLATE_LAVORATORI = `
 <div x-data="ListaLavoratori()" x-init="init()" x-effect="aggiornaSeCantiereRicambia()" class="max-w-5xl">
 
   <!-- Header -->
-  <div class="flex items-center justify-between mb-5">
+  <div class="flex items-center justify-between mb-3">
     <div>
       <h1 class="text-xl font-semibold text-slate-800">👷 Lavoratori</h1>
       <p class="text-xs text-slate-400 mt-0.5"
          x-text="contatori.totale + ' lavoratori: ' + contatori.verde + ' ✓  ' + contatori.giallo + ' ⚠  ' + contatori.rosso + ' ✕'">
       </p>
     </div>
-    <button @click="nuovoLavoratore()" x-show="$store.cantiere.id"
-            class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium
-                   px-4 py-2 rounded-lg transition-colors
-                   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-      + Nuovo lavoratore
-    </button>
+    <div class="flex items-center gap-2">
+      <button @click="noteAperte = !noteAperte"
+              :aria-expanded="String(noteAperte)"
+              class="flex items-center gap-1 text-xs text-sky-700 bg-sky-50 border border-sky-200
+                     px-2.5 py-1 rounded-full hover:bg-sky-100 transition-colors
+                     focus:outline-none focus:ring-2 focus:ring-sky-400"
+              title="Documenti tipicamente attesi — aiuto-memoria, non vincolante">
+        &#x2139; Documenti attesi
+      </button>
+      <button @click="nuovoLavoratore()" x-show="$store.cantiere.id"
+              class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium
+                     px-4 py-2 rounded-lg transition-colors
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+        + Nuovo lavoratore
+      </button>
+    </div>
+  </div>
+
+  <!-- Pannello documenti attesi (UI-only, non entra in nessun export) -->
+  <div x-show="noteAperte" x-transition class="nota-normativa-panel mb-4"
+       role="note" aria-label="Documenti tipicamente attesi per i lavoratori">
+    <p class="text-xs text-sky-500 mb-2 italic">
+      Promemoria per il CSE — elenco indicativo, non esaustivo né vincolante.
+    </p>
+    <template x-for="nota in noteLav" :key="nota.titolo">
+      <div>
+        <h4 x-text="nota.titolo"></h4>
+        <p x-text="nota.testo"></p>
+      </div>
+    </template>
   </div>
 
   <!-- Nessun cantiere -->
@@ -770,6 +867,7 @@ const _TEMPLATE_LAVORATORI = `
             <input id="lav-vm-data" type="date"
                    :value="formDati.visitaMedica?.data ?? ''"
                    @input="(formDati.visitaMedica ??= {}).data = $event.target.value || null"
+                   @change="onVmDataChange($event.target.value)"
                    class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm
                           focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
@@ -783,6 +881,10 @@ const _TEMPLATE_LAVORATORI = `
                    class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm
                           focus:outline-none focus:ring-2 focus:ring-blue-500"
                    :class="UTILS.giorniAllaScadenza(formDati.visitaMedica?.scadenza) < 0 ? 'border-red-400 bg-red-50' : ''">
+            <p x-show="formDati.visitaMedica?.data"
+               class="text-xs mt-0.5 text-amber-600"
+               x-text="DURATE_DOCUMENTI.nota('visita_medica')">
+            </p>
           </div>
           <div class="sm:col-span-2 flex items-center gap-2 flex-wrap">
             <!-- apri (se base64 presente) -->
@@ -863,6 +965,14 @@ const _TEMPLATE_LAVORATORI = `
                           focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
           <div>
+            <label for="lav-af-rilascio" class="block text-xs font-medium text-slate-600 mb-1">Data rilascio</label>
+            <input id="lav-af-rilascio" type="date"
+                   :value="formDati.attestatoFormazione?.data_rilascio ?? ''"
+                   @input="onAfRilascioChange($event.target.value)"
+                   class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm
+                          focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </div>
+          <div>
             <label for="lav-af-scad" class="block text-xs font-medium text-slate-600 mb-1">
               Scadenza 🟠
             </label>
@@ -871,6 +981,10 @@ const _TEMPLATE_LAVORATORI = `
                    @input="(formDati.attestatoFormazione ??= {}).scadenza = $event.target.value || null"
                    class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm
                           focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <p x-show="formDati.attestatoFormazione?.data_rilascio"
+               class="text-xs mt-0.5 text-amber-600"
+               x-text="DURATE_DOCUMENTI.nota('formazione')">
+            </p>
           </div>
           <div class="sm:col-span-2 flex items-center gap-2 flex-wrap">
             <!-- apri (se base64 presente) -->
@@ -986,7 +1100,15 @@ const _TEMPLATE_LAVORATORI = `
                 </div>
               </div>
 
-              <div class="grid gap-2 sm:grid-cols-2">
+              <div class="grid gap-2 sm:grid-cols-3">
+                <div>
+                  <label class="block text-xs text-slate-500 mb-1">Data rilascio</label>
+                  <input type="date"
+                         :value="ab.data_rilascio ?? ''"
+                         @input="onAbRilascioChange(ab, $event.target.value)"
+                         class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs
+                                focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
                 <div>
                   <label class="block text-xs text-slate-500 mb-1">
                     Scadenza
@@ -999,6 +1121,10 @@ const _TEMPLATE_LAVORATORI = `
                          class="w-full border border-slate-300 rounded px-2 py-1.5 text-xs
                                 focus:outline-none focus:ring-2 focus:ring-blue-500"
                          :class="ab.scadenza && UTILS.giorniAllaScadenza(ab.scadenza) < 0 ? 'border-red-400 bg-red-50' : ''">
+                  <p x-show="ab.data_rilascio"
+                     class="text-xs mt-0.5 text-amber-600"
+                     x-text="DURATE_DOCUMENTI.nota('abilitazione')">
+                  </p>
                 </div>
                 <div class="flex items-center gap-2 flex-wrap">
                   <!-- apri (se base64 presente) -->
