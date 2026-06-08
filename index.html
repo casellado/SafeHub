@@ -74,6 +74,7 @@
   <script src="moduli/diario-cse/diario-cse.js"></script>
   <script src="moduli/registro-psc/registro-psc.js"></script>
   <script src="moduli/pos/pos.js"></script>
+  <script src="moduli/notifica-preliminare/notifica-preliminare.js"></script>
   <script src="moduli/archivio-documenti/archivio-documenti.js"></script>
   <script src="moduli/ods/ods.js"></script>
   <script src="moduli/conformita-documenti/conformita-documenti.js"></script>
@@ -312,6 +313,12 @@
                 :class="{'attiva': $store.app.moduloAttivo === 'pos'}"
                 :aria-current="$store.app.moduloAttivo === 'pos' ? 'page' : null">
           <span aria-hidden="true">📋</span> POS imprese
+        </button>
+        <button class="nav-voce"
+                @click="navigaA('notifica-preliminare')"
+                :class="{'attiva': $store.app.moduloAttivo === 'notifica-preliminare'}"
+                :aria-current="$store.app.moduloAttivo === 'notifica-preliminare' ? 'page' : null">
+          <span aria-hidden="true">📬</span> Notifica Preliminare
         </button>
 
         <!-- ANAGRAFICHE -->

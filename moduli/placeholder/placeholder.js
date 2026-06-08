@@ -25,6 +25,7 @@ const PLACEHOLDER = (() => {
     'verifica-pos':          'Verifica POS / ITP',
     'proposte-sospensione':  'Proposte di Sospensione CSE',
     'pos':                   'POS Imprese',
+    'notifica-preliminare':  'Notifica Preliminare',
     'conformita-documenti':  'Conformità Documenti',
     'diario-cse':            'Diario CSE',
     'archivio-documenti':    'Archivio Documenti',
