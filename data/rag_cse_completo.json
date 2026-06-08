@@ -1,0 +1,443 @@
+{
+  "meta": {
+    "progetto": "SafeHub - RAG normativo CSE",
+    "totale_chunk": 18,
+    "per_tipo": {
+      "norma": 13,
+      "buona_pratica": 4,
+      "giurisprudenza": 1
+    },
+    "ambiti": [
+      "cantiere",
+      "cse",
+      "grandi_infrastrutture"
+    ],
+    "nota_validazione": "PLACEHOLDER — sostituire con rag_cse_completo.json completo (74 chunk). cp rag_cse_completo.json SafeHub-Archivio/data/rag_cse_completo.json",
+    "versione": "1.0-placeholder",
+    "data_normalizzazione": "2026-06-08",
+    "schema_campi": [
+      "id",
+      "tipo",
+      "fonte",
+      "riferimento",
+      "tema",
+      "ambito",
+      "titolo",
+      "testo",
+      "testo_originale",
+      "note_cse",
+      "collegamenti"
+    ]
+  },
+  "chunks": [
+    {
+      "id": "ponteggi_pimus_obbligo",
+      "tipo": "norma",
+      "fonte": "D.Lgs. 81/2008",
+      "riferimento": "art. 136 c.1 D.Lgs. 81/2008; Allegato XXII",
+      "tema": [
+        "ponteggi",
+        "lavori_in_quota"
+      ],
+      "ambito": [
+        "cantiere",
+        "cse",
+        "grandi_infrastrutture"
+      ],
+      "titolo": "PiMUS: piano di montaggio, uso e smontaggio dei ponteggi",
+      "testo": "Nei lavori in quota il datore di lavoro provvede a redigere, a mezzo di persona competente, un piano di montaggio, uso e smontaggio (Pi.M.U.S.), in funzione della complessità del ponteggio scelto, con la valutazione delle condizioni di sicurezza realizzate attraverso gli specifici sistemi utilizzati nella particolare realizzazione e in ciascuna fase di lavoro prevista. Il piano può assumere la forma di piano di applicazione generalizzata integrato da istruzioni e progetti particolareggiati per gli schemi speciali, ed è messo a disposizione del preposto addetto alla sorveglianza e dei lavoratori interessati. I contenuti minimi del PiMUS sono indicati nell'Allegato XXII.",
+      "note_cse": "Il PiMUS è obbligatorio ogni volta che si impiega un ponteggio metallico fisso; non è richiesto per opere provvisionali diverse dai ponteggi (es. trabattelli, ponti su cavalletti). Il CSE verifica la presenza e l'idoneità del PiMUS e la sua coerenza con il PSC e i POS.",
+      "collegamenti": [
+        "ponteggi_montaggio_sorveglianza",
+        "cse_art92_verifica_psc_pos"
+      ]
+    },
+    {
+      "id": "ponteggi_montaggio_sorveglianza",
+      "tipo": "norma",
+      "fonte": "D.Lgs. 81/2008",
+      "riferimento": "art. 136 c.6 D.Lgs. 81/2008; art. 134",
+      "tema": [
+        "ponteggi",
+        "lavori_in_quota",
+        "formazione"
+      ],
+      "ambito": [
+        "cantiere",
+        "cse",
+        "grandi_infrastrutture"
+      ],
+      "titolo": "Montaggio dei ponteggi sotto sorveglianza del preposto e copia del PiMUS in cantiere",
+      "testo": "Il datore di lavoro assicura che i ponteggi siano montati, smontati o trasformati sotto la diretta sorveglianza di un preposto, a regola d'arte e conformemente al PiMUS, a opera di lavoratori che hanno ricevuto una formazione adeguata e mirata alle operazioni previste. Nei cantieri in cui sono usati ponteggi deve essere tenuta ed esibita, a richiesta degli organi di vigilanza, copia della documentazione di cui all'art. 131 c.6 e copia del PiMUS.",
+      "note_cse": "Per il CSE: le operazioni su ponteggio richiedono sorveglianza del preposto e lavoratori formati; in cantiere deve essere disponibile copia del PiMUS. La formazione specifica per montaggio/smontaggio/trasformazione ponteggi è tra quelle che rilevano anche ai fini della sospensione (Allegato I n. 3).",
+      "collegamenti": [
+        "ponteggi_pimus_obbligo",
+        "allegato1_formazione_addestramento"
+      ]
+    },
+    {
+      "id": "dl159_sistemi_anticaduta",
+      "tipo": "norma",
+      "fonte": "Circolare INL R.0000001 del 23/02/2026",
+      "riferimento": "art. 5 c.1 lett. i D.L. 159/2025 (conv. L. 198/2025); art. 115 D.Lgs. 81/2008",
+      "tema": [
+        "lavori_in_quota",
+        "dpi"
+      ],
+      "ambito": [
+        "cantiere",
+        "cse",
+        "grandi_infrastrutture"
+      ],
+      "titolo": "Sistemi di protezione contro le cadute dall'alto: priorità ai collettivi",
+      "testo": "L'art. 115 riformulato ribadisce l'obbligo di dare priorità ai sistemi di protezione collettivi rispetto a quelli individuali, esplicitando che tra le misure collettive sono prioritari i parapetti e le reti di sicurezza. La protezione individuale è subordinata e si articola in quattro tipologie: sistemi di trattenuta; sistemi di posizionamento sul lavoro; sistemi di accesso e di posizionamento mediante funi; sistemi di arresto caduta. Tutti i sistemi sono costituiti da un dispositivo di presa del corpo e da un sistema di collegamento e vanno scelti in base all'idoneità per l'uso specifico; le prime tre tipologie hanno priorità rispetto al sistema di arresto caduta.",
+      "note_cse": "Gerarchia confermata e resa esplicita: prima i collettivi (parapetti, reti), poi gli individuali, e tra questi l'arresto caduta è l'ultima scelta. Utile al CSE per valutare l'adeguatezza delle misure anticaduta previste e adottate in cantiere.",
+      "collegamenti": [
+        "allegato1_dpi_anticaduta"
+      ]
+    },
+    {
+      "id": "allegato1_dpi_anticaduta",
+      "tipo": "norma",
+      "fonte": "Circolare INL n. 4 del 09/12/2021",
+      "riferimento": "Allegato I n. 6 al D.L. 146/2021",
+      "tema": [
+        "sospensione",
+        "dpi",
+        "lavori_in_quota"
+      ],
+      "ambito": [
+        "cantiere",
+        "cse",
+        "grandi_infrastrutture"
+      ],
+      "titolo": "Sospensione per DPI anticaduta: mancata fornitura vs mancato utilizzo",
+      "testo": "La sospensione per la fattispecie n. 6 si applica esclusivamente quando risulti accertato (anche tramite dichiarazioni incrociate oltre che documentazione) che i DPI contro le cadute dall'alto non sono stati forniti al lavoratore. È una fattispecie diversa dalle ipotesi in cui i lavoratori, pur disponendone, non li abbiano utilizzati.",
+      "note_cse": "Distinzione operativa importante per il CSE: la sospensione colpisce la mancata fornitura del DPI anticaduta, non il mancato utilizzo. Il mancato utilizzo resta una non conformità da contestare con altri strumenti (vigilanza, richiamo al rispetto del POS), ma non integra di per sé questa causa di sospensione.",
+      "collegamenti": [
+        "sospensione_gravi_violazioni_ss",
+        "allegato1_formazione_addestramento"
+      ]
+    },
+    {
+      "id": "cse_art92_sospensione_pericolo",
+      "tipo": "norma",
+      "fonte": "D.Lgs. 81/2008",
+      "riferimento": "art. 92 c.1 lett. f D.Lgs. 81/2008",
+      "tema": [
+        "sospensione",
+        "vigilanza",
+        "coordinamento"
+      ],
+      "ambito": [
+        "cantiere",
+        "cse",
+        "grandi_infrastrutture"
+      ],
+      "titolo": "Sospensione diretta delle lavorazioni per pericolo grave e imminente",
+      "testo_originale": "sospende, in caso di pericolo grave e imminente, direttamente riscontrato, le singole lavorazioni fino alla verifica degli avvenuti adeguamenti effettuati dalle imprese interessate",
+      "testo": "Il coordinatore per l'esecuzione sospende, in caso di pericolo grave e imminente direttamente riscontrato, le singole lavorazioni fino alla verifica degli avvenuti adeguamenti effettuati dalle imprese interessate.",
+      "note_cse": "Unico potere di sospensione diretta del CSE, distinto dalla mera proposta della lett. e): riguarda le singole lavorazioni, presuppone un pericolo grave e imminente direttamente riscontrato dal CSE, e dura fino alla verifica degli adeguamenti. Non va confuso con la sospensione dell'attività imprenditoriale ex art. 14 (competenza INL/ASL).",
+      "collegamenti": [
+        "cse_art92_contestazione_segnalazione",
+        "sospensione_finalita_competenza"
+      ]
+    },
+    {
+      "id": "cse_art92_contestazione_segnalazione",
+      "tipo": "norma",
+      "fonte": "D.Lgs. 81/2008",
+      "riferimento": "art. 92 c.1 lett. e D.Lgs. 81/2008",
+      "tema": [
+        "contestazione",
+        "vigilanza",
+        "sospensione"
+      ],
+      "ambito": [
+        "cantiere",
+        "cse",
+        "grandi_infrastrutture"
+      ],
+      "titolo": "Contestazione scritta, segnalazione al committente e proposta di provvedimenti",
+      "testo_originale": "segnala al committente o al responsabile dei lavori, previa contestazione scritta alle imprese e ai lavoratori autonomi interessati, le inosservanze (...) e propone la sospensione dei lavori, l'allontanamento delle imprese o dei lavoratori autonomi dal cantiere, o la risoluzione del contratto",
+      "testo": "Il coordinatore per l'esecuzione segnala al committente o al responsabile dei lavori, previa contestazione scritta alle imprese e ai lavoratori autonomi interessati, le inosservanze alle disposizioni degli articoli 94, 95, 96 e 97 c.1 e alle prescrizioni del PSC di cui all'art. 100 ove previsto, e propone la sospensione dei lavori, l'allontanamento delle imprese o dei lavoratori autonomi dal cantiere, o la risoluzione del contratto. Se il committente o il responsabile dei lavori non adotta alcun provvedimento in merito alla segnalazione, senza fornire idonea motivazione, il coordinatore per l'esecuzione dà comunicazione dell'inadempienza all'azienda unità sanitaria locale e alla direzione provinciale del lavoro territorialmente competenti.",
+      "note_cse": "Sequenza fondamentale del CSE: la contestazione scritta alle imprese precede la segnalazione al committente/RL; il CSE propone (non dispone) sospensione, allontanamento o risoluzione. In caso di inerzia ingiustificata del committente, scatta la comunicazione a ASL e Ispettorato.",
+      "collegamenti": [
+        "cse_art92_sospensione_pericolo",
+        "cse_art92_verifica_psc_pos"
+      ]
+    },
+    {
+      "id": "cse_art92_verifica_psc_pos",
+      "tipo": "norma",
+      "fonte": "D.Lgs. 81/2008",
+      "riferimento": "art. 92 c.1 lett. a e b D.Lgs. 81/2008",
+      "tema": [
+        "coordinamento",
+        "vigilanza",
+        "psc",
+        "pos"
+      ],
+      "ambito": [
+        "cantiere",
+        "cse",
+        "grandi_infrastrutture"
+      ],
+      "titolo": "Obbligo del CSE di verifica dell'applicazione del PSC e dell'idoneità del POS",
+      "testo": "Durante la realizzazione dell'opera, il coordinatore per l'esecuzione verifica, con opportune azioni di coordinamento e controllo, l'applicazione da parte delle imprese esecutrici e dei lavoratori autonomi delle disposizioni loro pertinenti contenute nel piano di sicurezza e di coordinamento (PSC) di cui all'art. 100, ove previsto, e la corretta applicazione delle relative procedure di lavoro. Verifica inoltre l'idoneità del piano operativo di sicurezza (POS), da considerare come piano complementare di dettaglio del PSC, assicurandone la coerenza con quest'ultimo; adegua il PSC e il fascicolo dell'art. 91 c.1 lett. b in relazione all'evoluzione dei lavori e alle modifiche intervenute, valutando le proposte delle imprese esecutrici dirette a migliorare la sicurezza, e verifica che le imprese esecutrici adeguino, se necessario, i rispettivi POS.",
+      "note_cse": "È il compito centrale del CSE in fase esecutiva: controllo dell'applicazione del PSC, verifica di idoneità e coerenza del POS rispetto al PSC, aggiornamento di PSC e fascicolo. La violazione delle lett. a) e b) è sanzionata ai sensi dell'art. 158.",
+      "collegamenti": [
+        "cse_art92_contestazione_segnalazione"
+      ]
+    },
+    {
+      "id": "bp_cse_gestione_inadempienze",
+      "tipo": "buona_pratica",
+      "fonte": "Linea Guida CNI 10/11/2015 n. 626",
+      "riferimento": "art. 92 c.1 lett. e e f D.Lgs. 81/2008 (modalità applicative)",
+      "tema": [
+        "contestazione",
+        "sospensione",
+        "vigilanza"
+      ],
+      "ambito": [
+        "cantiere",
+        "cse",
+        "grandi_infrastrutture"
+      ],
+      "titolo": "Buona pratica: gestione delle inadempienze e del pericolo grave e imminente",
+      "testo": "In caso di inosservanza delle disposizioni degli artt. 94, 95, 96 e 97 c.1 e delle prescrizioni del PSC, è buona pratica che il CSE contesti per iscritto quanto riscontrato alle imprese o ai lavoratori autonomi interessati e all'impresa affidataria, trasmettendo copia del verbale al committente o al responsabile dei lavori; in caso di mancato adeguamento segnala le inosservanze al committente o RL proponendo la sospensione dei lavori, l'allontanamento delle imprese o dei lavoratori autonomi, o la risoluzione del contratto. In caso di pericolo grave e imminente, il CSE contesta per iscritto quanto direttamente riscontrato e sospende le singole lavorazioni pericolose, trasmettendo copia del verbale a committente o RL, direttore dei lavori e impresa affidataria; effettuati gli adeguamenti, ne riscontra la corretta esecuzione con un sopralluogo e fa riprendere le lavorazioni, trasmettendo il relativo verbale.",
+      "note_cse": "Traduce operativamente la sequenza dell'art. 92 lett. e) ed f): contestazione scritta sempre tracciata, segnalazione al committente in caso di mancato adeguamento, sospensione diretta delle singole lavorazioni in caso di pericolo grave e imminente con verifica degli adeguamenti prima della ripresa.",
+      "collegamenti": [
+        "cse_art92_contestazione_segnalazione",
+        "cse_art92_sospensione_pericolo"
+      ]
+    },
+    {
+      "id": "allegato1_formazione_addestramento",
+      "tipo": "norma",
+      "fonte": "Circolare INL n. 4 del 09/12/2021",
+      "riferimento": "Allegato I n. 3 al D.L. 146/2021; artt. 37, 73, 77 c.5, 116 c.4, 136 c.6, 169 D.Lgs. 81/2008",
+      "tema": [
+        "sospensione",
+        "formazione"
+      ],
+      "ambito": [
+        "cantiere",
+        "cse",
+        "grandi_infrastrutture"
+      ],
+      "titolo": "Sospensione per mancata formazione e addestramento: presupposti",
+      "testo": "La sospensione per la fattispecie n. 3 dell'Allegato I si adotta solo quando per il lavoratore è prevista la partecipazione sia ai corsi di formazione sia all'addestramento. Le ipotesi rilevanti sono: utilizzo di attrezzature di lavoro (art. 73 in combinato con art. 37, nei casi dell'Accordo Stato-Regioni 22/02/2012); utilizzo di DPI di III categoria e dispositivi di protezione dell'udito (art. 77 c.5); sistemi di accesso e posizionamento mediante funi (art. 116 c.4); montaggio, smontaggio e trasformazione di ponteggi per lavoratori e preposti (art. 136 c.6); movimentazione manuale dei carichi (art. 169).",
+      "note_cse": "Non ogni carenza formativa fa scattare la sospensione: serve la doppia previsione di formazione e addestramento per quella mansione. Le ipotesi citate (ponteggi, funi, attrezzature, DPI III categoria, MMC) sono tipiche del cantiere e utili al CSE per valutare l'abilitazione dei lavoratori a specifiche lavorazioni.",
+      "collegamenti": [
+        "sospensione_gravi_violazioni_ss",
+        "ponteggi_montaggio_sorveglianza"
+      ]
+    },
+    {
+      "id": "sospensione_gravi_violazioni_ss",
+      "tipo": "norma",
+      "fonte": "Circolare INL n. 3/2021",
+      "riferimento": "art. 14 D.Lgs. 81/2008; Allegato I al D.L. 146/2021",
+      "tema": [
+        "sospensione",
+        "vigilanza",
+        "lavori_in_quota",
+        "scavi",
+        "rischio_elettrico",
+        "dpi"
+      ],
+      "ambito": [
+        "cantiere",
+        "cse",
+        "grandi_infrastrutture"
+      ],
+      "titolo": "Gravi violazioni di salute e sicurezza che comportano la sospensione",
+      "testo": "Il provvedimento di sospensione deve essere adottato quando sia accertata anche una sola delle gravi violazioni di salute e sicurezza elencate tassativamente nell'Allegato I al D.L. 146/2021 (non è più richiesta la reiterazione). Le fattispecie sono: mancata elaborazione del DVR; mancata elaborazione del piano di emergenza ed evacuazione; mancata formazione e addestramento; mancata costituzione del SPP e nomina del responsabile; mancata elaborazione del POS; mancata fornitura del DPI contro le cadute dall'alto; mancanza di protezioni verso il vuoto; mancata applicazione delle armature di sostegno; lavori in prossimità di linee elettriche senza misure idonee; presenza di conduttori nudi in tensione senza misure idonee; mancanza di protezione contro i contatti diretti e indiretti; omessa vigilanza sulla rimozione o modifica dei dispositivi di sicurezza, segnalazione o controllo.",
+      "note_cse": "Sono le stesse non conformità tecniche che il CSE rileva in cantiere. Basta l'accertamento di una sola di esse per consentire la sospensione da parte dell'organo di vigilanza.",
+      "collegamenti": [
+        "sospensione_finalita_competenza",
+        "cse_art92_sospensione_pericolo"
+      ]
+    },
+    {
+      "id": "sospensione_finalita_competenza",
+      "tipo": "norma",
+      "fonte": "Circolare INL n. 3/2021",
+      "riferimento": "art. 14 c.1 e c.8 D.Lgs. 81/2008 (come sost. da art. 13 D.L. 146/2021)",
+      "tema": [
+        "sospensione",
+        "vigilanza"
+      ],
+      "ambito": [
+        "cantiere",
+        "cse",
+        "grandi_infrastrutture"
+      ],
+      "titolo": "Sospensione dell'attività imprenditoriale: finalità e natura non discrezionale",
+      "testo": "Il provvedimento di sospensione dell'attività imprenditoriale è adottato dall'Ispettorato nazionale del lavoro, tramite il proprio personale ispettivo, al fine di far cessare il pericolo per la tutela della salute e della sicurezza dei lavoratori; lo stesso potere spetta ai servizi ispettivi delle aziende sanitarie locali. Rispetto alla disciplina previgente è venuta meno ogni forma di discrezionalità: ricorrendo i presupposti, il provvedimento deve essere adottato.",
+      "note_cse": "Il provvedimento è di competenza dell'organo di vigilanza (INL o ASL), non del CSE. Il CSE non sospende l'attività imprenditoriale: rileva e contesta le non conformità e, nei casi gravi, informa committente e organi competenti.",
+      "collegamenti": [
+        "sospensione_gravi_violazioni_ss",
+        "cse_art92_sospensione_pericolo"
+      ]
+    },
+    {
+      "id": "giur_posizione_garanzia_cse",
+      "tipo": "giurisprudenza",
+      "fonte": "Cassazione penale Sez. 4 (orientamento consolidato)",
+      "riferimento": "art. 92 D.Lgs. 81/2008; Cass. pen. n. 18149/2010, n. 24915/2021, n. 18040/2024, n. 23840/2025",
+      "tema": [
+        "vigilanza",
+        "coordinamento"
+      ],
+      "ambito": [
+        "cantiere",
+        "cse",
+        "grandi_infrastrutture"
+      ],
+      "titolo": "Principio consolidato: posizione di garanzia e alta vigilanza del CSE",
+      "testo": "Secondo l'orientamento consolidato della Cassazione penale, il coordinatore per l'esecuzione è titolare di una posizione di garanzia: non è un semplice spettatore, ma una figura chiamata ad assicurare che le attività si svolgano in condizioni complessive di sicurezza e in coerenza con il PSC. La sua è una vigilanza di livello più elevato (alta vigilanza), che riguarda la generale configurazione delle lavorazioni e non il controllo operativo momento per momento delle singole attività, demandato a datore di lavoro, dirigente e preposto. La posizione di garanzia non comporta tuttavia una responsabilità automatica per ogni infortunio accaduto in cantiere.",
+      "note_cse": "Principio-cardine ribadito da una serie costante di sentenze (tra cui Sez. 4 n. 18149/2010, n. 24915/2021, n. 18040/2024, n. 23840/2025). Definisce sia il fondamento della responsabilità del CSE sia il suo limite.",
+      "collegamenti": [
+        "bp_cse_alta_vigilanza",
+        "cse_art92_verifica_psc_pos"
+      ]
+    },
+    {
+      "id": "bp_cse_alta_vigilanza",
+      "tipo": "buona_pratica",
+      "fonte": "Linea Guida CNI 10/11/2015 n. 626; Cass. pen. n. 41820/2015",
+      "riferimento": "art. 92 D.Lgs. 81/2008 (interpretazione)",
+      "tema": [
+        "vigilanza",
+        "coordinamento"
+      ],
+      "ambito": [
+        "cantiere",
+        "cse",
+        "grandi_infrastrutture"
+      ],
+      "titolo": "Principio di alta vigilanza del CSE",
+      "testo": "Secondo la Linea Guida del Consiglio Nazionale degli Ingegneri, avallata dalla giurisprudenza di legittimità, la funzione del CSE è di alta vigilanza in termini di coordinamento delle imprese, mentre la vigilanza operativa, puntuale, continua e stringente è di competenza del datore di lavoro delle imprese esecutrici e in particolare dell'impresa affidataria, attraverso le figure operative del dirigente e del preposto. Il compito di alta vigilanza, pur assicurando un'efficace azione di coordinamento, non implica una presenza costante e continua in cantiere con il controllo delle singole lavorazioni in atto.",
+      "note_cse": "Principio-cardine per delimitare la responsabilità del CSE: la sua è alta vigilanza di coordinamento, non sorveglianza operativa continua. È buona prassi individuare, sulla base del cronoprogramma, le fasi critiche in cui programmare la presenza in cantiere.",
+      "collegamenti": [
+        "cse_art92_verifica_psc_pos",
+        "bp_cse_sopralluoghi_periodici"
+      ]
+    },
+    {
+      "id": "bp_cse_sopralluoghi_periodici",
+      "tipo": "buona_pratica",
+      "fonte": "Linea Guida CNI 10/11/2015 n. 626",
+      "riferimento": "art. 92 c.1 lett. a D.Lgs. 81/2008 (modalità applicative)",
+      "tema": [
+        "vigilanza",
+        "coordinamento"
+      ],
+      "ambito": [
+        "cantiere",
+        "cse",
+        "grandi_infrastrutture"
+      ],
+      "titolo": "Buona pratica: sopralluoghi periodici e frequenza delle visite",
+      "testo": "È buona pratica che il CSE effettui sopralluoghi in cantiere con periodicità da determinare in funzione delle caratteristiche dell'opera e dei rischi presenti, e comunque in occasione delle fasi critiche della realizzazione, preferibilmente accompagnato dal capo cantiere e/o dai preposti delle imprese, per verificare la corretta applicazione del PSC e delle procedure di lavoro, indicando il tempo entro cui ottemperare alle inadempienze. La normativa non quantifica un numero minimo di visite: rimette al CSE, nella sua discrezionalità professionale, la scelta di quante e quali visite effettuare, garantendo la presenza nei momenti di maggior rischio.",
+      "note_cse": "La frequenza dei sopralluoghi non è fissata dalla legge: il CSE la determina in base ai rischi e alle fasi critiche del cronoprogramma. È buona prassi presenziare nelle fasi a maggior rischio e usare check list a supporto.",
+      "collegamenti": [
+        "bp_cse_alta_vigilanza",
+        "bp_cse_gestione_inadempienze"
+      ]
+    },
+    {
+      "id": "tutela_cse_forma_scritta",
+      "tipo": "buona_pratica",
+      "fonte": "Linea Guida CNI 10/11/2015 n. 626; orientamento Cass. pen. (es. Sez. 4 n. 20703/2017)",
+      "riferimento": "art. 92 c.1 lett. e D.Lgs. 81/2008 (interpretazione)",
+      "tema": [
+        "contestazione",
+        "vigilanza"
+      ],
+      "ambito": [
+        "cantiere",
+        "cse",
+        "grandi_infrastrutture"
+      ],
+      "titolo": "Tutela del CSE: forma scritta delle contestazioni",
+      "testo": "Secondo l'orientamento della giurisprudenza di legittimità, le contestazioni del CSE alle imprese e ai lavoratori autonomi devono risultare da atto scritto: i richiami meramente verbali non rilevano ai fini di legge e la loro esistenza non può essere provata per testimonianza. È quindi buona pratica che ogni inosservanza rilevata sia contestata per iscritto ai soggetti interessati e all'impresa affidataria, con trasmissione di copia al committente o al responsabile dei lavori, conservando evidenza della comunicazione.",
+      "note_cse": "Cautela essenziale: la contestazione verbale non protegge il CSE. La forma scritta è al tempo stesso adempimento dell'art. 92 lett. e) e strumento di prova dell'attività svolta.",
+      "collegamenti": [
+        "cse_art92_contestazione_segnalazione",
+        "bp_cse_gestione_inadempienze"
+      ]
+    },
+    {
+      "id": "patente_crediti_soggetti_obbligati",
+      "tipo": "norma",
+      "fonte": "Circolare INL n. 4 del 23/09/2024",
+      "riferimento": "art. 27 c.1 D.Lgs. 81/2008; D.M. 132/2024",
+      "tema": [
+        "patente_a_crediti",
+        "idoneita_tecnico_professionale"
+      ],
+      "ambito": [
+        "cantiere",
+        "cse",
+        "grandi_infrastrutture"
+      ],
+      "titolo": "Patente a crediti: chi è obbligato e chi è escluso",
+      "testo": "Dal 1° ottobre 2024 le imprese (non necessariamente edili) e i lavoratori autonomi che operano fisicamente nei cantieri temporanei o mobili di cui all'art. 89 c.1 lett. a) devono possedere la patente a crediti. Sono esclusi: chi effettua mere forniture o prestazioni di natura intellettuale (es. ingegneri, architetti, geometri) e le imprese in possesso di attestazione SOA di classifica pari o superiore alla III. Le imprese individuali senza lavoratori sono equiparate ai lavoratori autonomi.",
+      "note_cse": "Il CSE verifica che le imprese esecutrici e i lavoratori autonomi presenti in cantiere rientrino o meno nell'obbligo. La sola presenza di un progettista o di un fornitore puro non fa scattare l'obbligo; l'impresa con SOA III o superiore è esentata.",
+      "collegamenti": [
+        "patente_crediti_soglia_15",
+        "patente_crediti_consultazione_cse"
+      ]
+    },
+    {
+      "id": "patente_crediti_soglia_15",
+      "tipo": "norma",
+      "fonte": "Circolare INL n. 4 del 23/09/2024",
+      "riferimento": "art. 27 D.Lgs. 81/2008; D.M. 132/2024",
+      "tema": [
+        "patente_a_crediti",
+        "idoneita_tecnico_professionale",
+        "sospensione"
+      ],
+      "ambito": [
+        "cantiere",
+        "cse",
+        "grandi_infrastrutture"
+      ],
+      "titolo": "Soglia minima di 15 crediti per operare in cantiere",
+      "testo": "Se la patente scende sotto i 15 crediti, l'impresa o il lavoratore autonomo non può continuare a operare in cantiere, salvo il completamento delle attività di appalto o subappalto già in corso quando i lavori eseguiti superino il 30% del valore del contratto nello specifico cantiere. Operare senza patente (o documento equivalente) o con patente sotto i 15 crediti comporta una sanzione amministrativa pari al 10% del valore dei lavori affidati nel cantiere e comunque non inferiore a 6.000 euro, non soggetta a diffida ex art. 301-bis, oltre all'esclusione dai lavori pubblici per sei mesi.",
+      "note_cse": "Soglia operativa che il CSE deve tenere presente: sotto i 15 crediti l'operatività in cantiere è di norma preclusa. La verifica del punteggio diventa quindi rilevante ai fini della prosecuzione dei lavori.",
+      "collegamenti": [
+        "patente_crediti_soggetti_obbligati",
+        "patente_crediti_consultazione_cse"
+      ]
+    },
+    {
+      "id": "patente_crediti_consultazione_cse",
+      "tipo": "norma",
+      "fonte": "Circolare INL n. 4 del 23/09/2024",
+      "riferimento": "art. 27 D.Lgs. 81/2008; D.M. 132/2024",
+      "tema": [
+        "patente_a_crediti",
+        "idoneita_tecnico_professionale",
+        "vigilanza"
+      ],
+      "ambito": [
+        "cantiere",
+        "cse",
+        "grandi_infrastrutture"
+      ],
+      "titolo": "Consultazione della patente: il CSE è tra i soggetti abilitati",
+      "testo": "La patente è rilasciata in formato digitale con un codice univoco e contiene, tra l'altro, il punteggio iniziale, il punteggio aggiornato, gli esiti di eventuali provvedimenti di sospensione e le decurtazioni di crediti. Tra i soggetti abilitati a consultare le informazioni della patente la norma indica espressamente i coordinatori per la sicurezza in fase di progettazione e di esecuzione, oltre a titolari/delegati, pubbliche amministrazioni, RLS e RLST, organismi paritetici, responsabile dei lavori e soggetti committenti.",
+      "note_cse": "Il CSE può accedere al punteggio e allo stato della patente delle imprese in cantiere; è uno strumento di verifica dell'idoneità tecnico-professionale in fase esecutiva.",
+      "collegamenti": [
+        "patente_crediti_soggetti_obbligati",
+        "patente_crediti_soglia_15"
+      ]
+    }
+  ]
+}

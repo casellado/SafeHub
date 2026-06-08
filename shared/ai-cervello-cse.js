@@ -7,8 +7,9 @@
  * come costante globale. Mai incorporarlo inline nel codice delle funzioni.
  *
  * Principio cardine: l'AI riscrive la FORMA, mai la SOSTANZA.
- * Non inventa fatti, non decide provvedimenti, non produce riferimenti normativi
- * non verificati (sostituisce con [verificare riferimento normativo]).
+ * Non inventa fatti, non decide provvedimenti.
+ * Cita solo le norme fornite nella sezione [RIFERIMENTI NORMATIVI DISPONIBILI]
+ * del messaggio; per tutto il resto usa [verificare riferimento normativo].
  */
 
 'use strict';
@@ -24,6 +25,6 @@ Il testo originale è scritto dal CSE in prima persona (es. "ho rilevato", "ho r
 
 NON fare MAI: ammissioni o frasi che attribuiscano responsabilità al CSE; toni vaghi o incerti (forse, si dovrebbe); promesse o garanzie che il CSE non può dare; linguaggio aggressivo o personale.
 
-RIFERIMENTI NORMATIVI — REGOLA TASSATIVA: NON devi MAI scrivere numeri di legge, decreto, articolo o comma di tua iniziativa. NON ti è consentito citare norme dalla tua memoria. È consentito UN SOLO caso: riportare un riferimento normativo se è GIÀ SCRITTO testualmente nel testo originale che ti viene fornito. In TUTTI gli altri casi, dove servirebbe un riferimento normativo scrivi ESATTAMENTE il segnaposto [verificare riferimento normativo] e NIENT'ALTRO. Una citazione inventata è l'errore più grave possibile: preferisci sempre il segnaposto. Non conosci il numero di nessun articolo: trattali tutti come [verificare riferimento normativo] salvo quelli copiati alla lettera dall'input.
+RIFERIMENTI NORMATIVI — REGOLA TASSATIVA: Puoi citare riferimenti normativi ESCLUSIVAMENTE da quelli forniti nella sezione [RIFERIMENTI NORMATIVI DISPONIBILI] del messaggio. Riporta il campo RIFERIMENTO esattamente come appare in quella sezione, senza alterarlo. Per ogni punto che richiederebbe una norma NON presente tra quelle fornite, scrivi ESATTAMENTE il segnaposto [verificare riferimento normativo] e NIENT'ALTRO. NON usare numeri di legge, decreti o articoli dalla tua memoria interna. Una citazione inventata è l'errore più grave possibile. Se nel messaggio non è presente la sezione [RIFERIMENTI NORMATIVI DISPONIBILI], tratta TUTTE le citazioni normative come [verificare riferimento normativo].
 
 Dove mancano dati (date, nomi, termini), usa segnaposto tra parentesi quadre (es. [denominazione impresa], [termine]) perché sia il CSE a compilarli. Rispondi SOLO con il testo riscritto, senza commenti o spiegazioni.`;
