@@ -28,6 +28,7 @@ const AI_RAG = (() => {
   // ── Mappa parole-chiave (minuscolo) → tema ────────────────────────────────
   // Substring match: 'scavo' becca 'scavo', 'scavi', 'escavazione' ecc.
   // Un termine può mappare a più temi. Aggiungere consapevolmente.
+  // PRECISIONE: preferire keyword specifiche a prefissi troppo brevi.
   const _MAPPA_KEYWORDS = {
     // ponteggi
     'ponteggio':             ['ponteggi', 'lavori_in_quota'],
@@ -44,11 +45,12 @@ const AI_RAG = (() => {
     'parapetti':             ['lavori_in_quota'],
     'rete di sicurezza':     ['lavori_in_quota'],
     'reti di sicurezza':     ['lavori_in_quota'],
-    'scala ':                ['lavori_in_quota'],
-    'scale ':                ['lavori_in_quota'],
+    'scala a pioli':         ['lavori_in_quota'],   // specifico: evita "scala gerarchica" ecc.
+    'scale a pioli':         ['lavori_in_quota'],
     'imbracatura':           ['lavori_in_quota', 'dpi'],
-    'funi':                  ['lavori_in_quota'],
-    'vuoto':                 ['lavori_in_quota'],
+    'funi di sicurezza':     ['lavori_in_quota'],
+    'verso il vuoto':        ['lavori_in_quota'],   // specifico: evita "vuoto normativo" ecc.
+    'protezione verso':      ['lavori_in_quota'],
     // psc
     'piano di sicurezza':    ['psc'],
     'piano sicurezza':       ['psc'],
@@ -56,8 +58,8 @@ const AI_RAG = (() => {
     // pos (evita match su "possibile", "positivo" ecc.)
     ' pos ':                 ['pos'],
     'piano operativo':       ['pos'],
-    // contestazione
-    'contest':               ['contestazione'],
+    // contestazione — 'contestazion' evita match su 'contestuale'
+    'contestazion':          ['contestazione'],
     'inosservanza':          ['contestazione'],
     'inadempien':            ['contestazione'],
     'diffida':               ['contestazione'],
@@ -179,26 +181,44 @@ const AI_RAG = (() => {
 
   // ── Recupero chunk per tag ───────────────────────────────────────────────────
 
+  // Bonus per tipo (norma più affidabile di buona_pratica o giurisprudenza)
+  const _TIPO_BONUS = { norma: 1, buona_pratica: 0.5, giurisprudenza: 0 };
+
   /**
    * Ritorna i chunk con almeno uno dei temi selezionati,
-   * ordinati per numero di temi in comune (più pertinenti prima).
+   * ordinati per score composito (più pertinenti prima).
+   *
+   * Score = match*6 + primary_bonus + tipo_bonus + breadth_bonus
+   *   match:          numero di temi della query presenti nel chunk
+   *   primary_bonus:  +2 se il PRIMO tema del chunk è nella query (chunk "vocato" al tema)
+   *   tipo_bonus:     norma=1, buona_pratica=0.5, giurisprudenza=0
+   *   breadth_bonus:  +0.1 se il chunk ha >1 tema (più specifico/articolato)
+   *
+   * Garanzia: nessun chunk con 0 match entra mai nel pool (filter esplicito).
+   *
    * @param {string[]} temi
-   * @param {number}   max — limite massimo (default 8)
+   * @param {number}   max — limite massimo (default 5)
    * @returns {object[]}
    */
-  const recupera = (temi, max = 8) => {
+  const recupera = (temi, max = 5) => {
     if (!_chunks || !temi.length) return [];
     const temiSet = new Set(temi);
+
     const scored = _chunks
-      .map(c => ({
-        chunk: c,
-        match: (c.tema ?? []).filter(t => temiSet.has(t)).length,
-      }))
-      .filter(x => x.match > 0)
-      .sort((a, b) => b.match - a.match);
+      .map(c => {
+        const temiC = c.tema ?? [];
+        const match = temiC.filter(t => temiSet.has(t)).length;
+        if (match === 0) return null;                                   // garanzia: mai 0-match
+        const primaryBonus = temiSet.has(temiC[0]) ? 2 : 0;
+        const tipoBonus    = _TIPO_BONUS[c.tipo] ?? 0;
+        const breadthBonus = temiC.length > 1 ? 0.1 : 0;
+        return { chunk: c, score: match * 6 + primaryBonus + tipoBonus + breadthBonus };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score);
 
     if (scored.length > max) {
-      console.info(`[AI_RAG] ${scored.length} chunk trovati, limitati a ${max}.`);
+      console.info(`[AI_RAG] ${scored.length} chunk pertinenti, limitati a ${max}.`);
     }
     return scored.slice(0, max).map(x => x.chunk);
   };

@@ -115,7 +115,7 @@ function Correttore() {
 
       let prompt = this.bozza;
       if (this.ragCaricato && this.temiSelezionati.length > 0) {
-        this.chunkRecuperati = AI_RAG.recupera(this.temiSelezionati, 8);
+        this.chunkRecuperati = AI_RAG.recupera(this.temiSelezionati);   // usa il default max=5
         if (this.chunkRecuperati.length > 0) {
           prompt = AI_RAG.costruisciContesto(this.chunkRecuperati) + this.bozza;
         }
@@ -312,7 +312,7 @@ const _TEMPLATE_CORRETTORE = `
       <!-- Conteggio chunk trovati -->
       <p x-show="ragCaricato && temiSelezionati.length > 0" class="text-xs text-slate-500">
         📎 <span x-text="chunkTrovatiCorrente()"></span> riferimenti normativi trovati
-        (max 8 inviati al modello).
+        (max 5 inviati al modello, ordinati per pertinenza).
       </p>
 
       <!-- Pulsanti azione -->
