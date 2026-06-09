@@ -76,6 +76,126 @@ function _cfAggrega() {
   return righe;
 }
 
+// ── Helper export DOCX — conformità per singola impresa ──────────────────────
+
+/** Intestazione standard per il documento conformità-impresa. */
+function _intestazioneConformita() {
+  const m   = IMPOSTAZIONI_SERVICE.modulo('conformita-documenti');
+  const bad = new Set(['conformita-documenti', '']);
+  const _ok = (v, def) => (!v || bad.has(v)) ? def : v;
+  return {
+    modulo_titolo:   _ok(m.titolo,   'Comunicazione conformità documentale'),
+    modulo_codice:   _ok(m.codice,   ''),
+    modulo_versione: _ok(m.versione, ''),
+    logo_aziendale:  IMPOSTAZIONI_SERVICE.logo()?.png_base64 ?? null,
+  };
+}
+
+/** Download DOCX con link temporaneo (pattern identico a PSC/scadenze). */
+function _scaricaBlobConformita(blob, nome) {
+  const url = URL.createObjectURL(blob);
+  const a   = document.createElement('a');
+  a.href = url; a.download = nome; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+/**
+ * Genera il corpo HTML per la comunicazione conformità di una singola impresa.
+ * Riusa ANAGRAFICA_SERVICE.calcolaConformita() — non ricalcola nulla.
+ * Pattern identico a generaCorpoHtmlScadenzeImpresa: p[], join, firma CSE.
+ * _cfLabelMotivo e _CF_TIPO_RAPPORTO: già in scope di modulo.
+ * @param {string} impresaId
+ * @returns {Promise<string>}
+ */
+async function generaCorpoHtmlConformitaImpresa(impresaId) {
+  const esc   = (s) => UTILS.escapeHtml(s ?? '');
+  const lotto = ANAGRAFICA_SERVICE.dati?.lotto ?? {};
+  const p     = [];
+
+  const imp = (ANAGRAFICA_SERVICE.dati?.imprese ?? []).find(i => i.id === impresaId);
+  if (!imp) {
+    p.push(`<p><em>Impresa non trovata.</em></p>`);
+    return p.join('\n');
+  }
+
+  const conf   = ANAGRAFICA_SERVICE.calcolaConformita(imp);
+  const cse    = IMPOSTAZIONI_SERVICE.cse();
+  const firm   = IMPOSTAZIONI_SERVICE.firma();
+  const cseImg = await _scalafirma(firm?.firma_png_base64 ?? null);
+
+  // ── 1. Intestazione documento ────────────────────────────────────────────
+  const codCant     = esc(Alpine.store('cantiere')?.id ?? lotto.id ?? '');
+  const nomeCant    = esc(lotto.nome ?? '');
+  const impresaNome = esc(imp.ragioneSociale?.trim() || imp.id);
+  const tipoRapp    = esc(_CF_TIPO_RAPPORTO[imp.tipoRapporto] ?? (imp.tipoRapporto ?? '—'));
+
+  p.push(`<p data-line="exact280"><strong>Cantiere:</strong> ${codCant}${nomeCant ? ' — ' + nomeCant : ''}</p>`);
+  if (lotto.committente) p.push(`<p data-line="exact280"><strong>Committente:</strong> ${esc(lotto.committente)}</p>`);
+  p.push(`<p data-line="exact280"><strong>Impresa:</strong> ${impresaNome}</p>`);
+  p.push(`<p data-line="exact280"><strong>Tipo di rapporto:</strong> ${tipoRapp}</p>`);
+  p.push(`<p data-line="exact280"><strong>Data:</strong> ${esc(UTILS.formatData(new Date().toISOString()))}</p>`);
+  p.push(`<p data-after="200">&nbsp;</p>`);
+
+  p.push(`<h2>Comunicazione conformità documentale</h2>`);
+
+  // ── 2. Corpo: in regola o tabella problemi ───────────────────────────────
+  if (conf.problemi.length === 0) {
+    p.push(`<p>La verifica dei documenti dell'impresa non ha rilevato criticità. ` +
+           `I documenti risultano conformi al tipo di rapporto contrattuale.</p>`);
+  } else {
+    p.push(`<p>Si evidenziano le seguenti non conformità documentali. ` +
+           `Si richiede di provvedere al completamento/aggiornamento della documentazione ` +
+           `e di trasmettere i documenti aggiornati al CSE.</p>`);
+    p.push(`<p data-after="120">&nbsp;</p>`);
+
+    p.push(`<h3>Criticità rilevate</h3>`);
+    p.push(`<table>`);
+    p.push(`<thead><tr>` +
+           `<th>Documento</th>` +
+           `<th>Motivo</th>` +
+           `<th>Priorità</th>` +
+           `<th>Giorni</th>` +
+           `</tr></thead>`);
+    p.push(`<tbody>`);
+
+    // Ordine: rosso_critico → rosso → giallo
+    const ORD = { rosso_critico: 0, rosso: 1, giallo: 2 };
+    const ordinati = [...conf.problemi].sort((a, b) => (ORD[a.livello] ?? 3) - (ORD[b.livello] ?? 3));
+
+    for (const pr of ordinati) {
+      const motivoStr  = _cfLabelMotivo(pr.motivo);
+      const livelloStr = pr.livello === 'rosso_critico' ? '⛔ CRITICO'
+                       : pr.livello === 'rosso'         ? 'Obbligatorio'
+                       :                                  'Da verificare';
+      const giorniStr  = pr.giorni == null        ? '—'
+                       : pr.giorni < 0             ? `${Math.abs(pr.giorni)} gg fa`
+                       :                             `tra ${pr.giorni} gg`;
+      p.push(`<tr>` +
+             `<td>${esc(pr.label || pr.tipo)}</td>` +
+             `<td>${esc(motivoStr)}</td>` +
+             `<td>${esc(livelloStr)}</td>` +
+             `<td>${giorniStr}</td>` +
+             `</tr>`);
+    }
+
+    p.push(`</tbody></table>`);
+    p.push(`<p data-after="120">&nbsp;</p>`);
+    p.push(`<p>Si richiede di regolarizzare i documenti indicati e di trasmetterli al CSE ` +
+           `nei termini previsti dal Piano di Sicurezza e Coordinamento e dai vigenti contratti.</p>`);
+  }
+
+  // ── 3. Firma CSE in calce (pattern identico a PSC/scadenze) ─────────────
+  const pr      = 'data-align="center" style="padding-left:52%;text-align:center"';
+  const cseNome = esc(cse?.nome_cognome ?? '');
+  p.push(`<p data-before="300">&nbsp;</p>`);
+  p.push(`<p ${pr}>Il Coordinatore per l'Esecuzione</p>`);
+  if (cseNome) p.push(`<p ${pr}>${cseNome}</p>`);
+  if (cseImg)  p.push(`<p ${pr}><img src="${cseImg}" alt="firma CSE"></p>`);
+  p.push(`<p ${pr}>${esc(UTILS.formatData(new Date().toISOString()))}</p>`);
+
+  return p.join('\n');
+}
+
 // ── Componente Alpine ─────────────────────────────────────────────────────────
 
 function ConformitaDocumenti() {
@@ -85,6 +205,10 @@ function ConformitaDocumenti() {
     caricamento:  true,
     filtroStato:  '',        // '' | 'rosso' | 'giallo' | 'verde' | 'grigio'
     _cantiereId:  null,
+
+    // Export DOCX per singola impresa
+    impresaExportId: '',
+    exportando:      false,
 
     // ── Computed ──────────────────────────────────────────────────────────────
 
@@ -149,6 +273,31 @@ function ConformitaDocumenti() {
       if (giorni == null) return '';
       if (giorni < 0) return `(${Math.abs(giorni)} gg fa)`;
       return `(tra ${giorni} gg)`;
+    },
+
+    async esportaConformitaImpresa(impresaId) {
+      if (!impresaId || this.exportando) return;
+      this.impresaExportId = impresaId;
+      this.exportando      = true;
+      try {
+        const corpo = await generaCorpoHtmlConformitaImpresa(impresaId);
+        const out   = await MOTORE_DOCX.generaDocumento({
+          tipo:       'conformita-documenti',
+          header:     _intestazioneConformita(),
+          corpo_html: corpo,
+          formati:    { docx: true },
+        });
+        const imp      = (ANAGRAFICA_SERVICE.dati?.imprese ?? []).find(i => i.id === impresaId);
+        const nomeSlug = (imp?.ragioneSociale ?? impresaId)
+          .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        _scaricaBlobConformita(out.docxBlob, `conformita-${this._cantiereId}-${nomeSlug}.docx`);
+        NOTIFICHE.successo('Esportato', `DOCX conformità scaricato per ${imp?.ragioneSociale ?? impresaId}.`);
+      } catch (err) {
+        ERRORI.gestisciErrore('conformita-documenti/esporta-impresa', err);
+      } finally {
+        this.exportando      = false;
+        this.impresaExportId = '';
+      }
     },
 
     classeCard(stato, critico) {
@@ -334,8 +483,25 @@ const _TEMPLATE_CONFORMITA = `
                   ⛔ CRITICO
                 </span>
 
+                <!-- Export DOCX per questa impresa -->
+                <button @click.stop="esportaConformitaImpresa(riga.impresa.id)"
+                        :disabled="exportando"
+                        type="button"
+                        class="ml-auto flex items-center gap-1 text-xs px-2 py-1 rounded-lg border
+                               border-slate-200 bg-white text-slate-500 hover:text-slate-800
+                               hover:border-slate-300 transition-colors flex-shrink-0
+                               focus:outline-none focus:ring-2 focus:ring-slate-400
+                               disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Esporta DOCX conformità per questa impresa">
+                  <span x-show="!(exportando && impresaExportId === riga.impresa.id)"
+                        aria-hidden="true">📋</span>
+                  <span x-show="exportando && impresaExportId === riga.impresa.id"
+                        class="w-3 h-3 border-2 border-slate-500 border-t-transparent
+                               rounded-full animate-spin" aria-hidden="true"></span>
+                </button>
+
                 <!-- Link di navigazione (lato destro) -->
-                <span class="ml-auto text-slate-300 text-sm select-none" aria-hidden="true">›</span>
+                <span class="text-slate-300 text-sm select-none" aria-hidden="true">›</span>
               </div>
 
               <!-- Verde: tutto a posto, messaggio positivo -->
