@@ -132,7 +132,11 @@ function EventiIncidentali() {
 
     // ── Drawer
     drawerAperto:              false,
-    formDati:                  {},
+    // sentinel: sub-oggetti sempre presenti finché il drawer usa x-show (non x-if)
+    formDati: {
+      persona_coinvolta: { lavoratore_id: null, testo: '' },
+      denuncia_inail:    { effettuata: false, data: '', estremi: '' },
+    },
     formDataOraInput:          '',   // formato datetime-local per <input type="datetime-local">
     formNuova:                 true,
     salvando:                  false,
@@ -263,7 +267,10 @@ function EventiIncidentali() {
         if (!confirm('Ci sono modifiche non salvate. Chiudere senza salvare?')) return;
       }
       this.drawerAperto = false;
-      this.formDati = {};
+      this.formDati = {
+        persona_coinvolta: { lavoratore_id: null, testo: '' },
+        denuncia_inail:    { effettuata: false, data: '', estremi: '' },
+      };
     },
 
     async salvaEvento() {

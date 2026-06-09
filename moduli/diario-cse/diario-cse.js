@@ -1153,7 +1153,7 @@ const _TEMPLATE_DIARIO = `
             <div class="flex items-center gap-2 flex-wrap pt-1">
               <span x-show="voce.stato_voce === 'firmata' && voce.firma?.firmato_da"
                     class="text-xs text-green-600"
-                    x-text="'Firmata da ' + voce.firma.firmato_da + ' · ' + UTILS.formatDataOra(voce.firma.firmato_il)">
+                    x-text="'Firmata da ' + voce.firma?.firmato_da + ' · ' + UTILS.formatDataOra(voce.firma?.firmato_il)">
               </span>
               <div class="ml-auto flex gap-2 flex-shrink-0">
                 <!-- Allegati: apri il primo o tutti -->
