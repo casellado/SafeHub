@@ -461,6 +461,11 @@ function OrdiniServizio() {
       }
       return r;
     },
+
+    migliora() {
+      if (typeof apriCorrettoreConTesto === 'undefined') return;
+      apriCorrettoreConTesto(this.formDescrizione ?? '', 'ODS — Descrizione / Note');
+    },
   };
 }
 
@@ -1022,9 +1027,18 @@ const _TEMPLATE_ODS = `
 
       <!-- Descrizione -->
       <div>
-        <label for="ods-desc" class="block text-xs font-medium text-slate-700 mb-1">
-          Descrizione / Note
-        </label>
+        <div class="flex items-center justify-between mb-1">
+          <label for="ods-desc" class="block text-xs font-medium text-slate-700">
+            Descrizione / Note
+          </label>
+          <button @click="migliora()" type="button"
+                  class="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800
+                         px-2.5 py-1 rounded-lg border border-violet-200 hover:bg-violet-50
+                         transition-colors focus:outline-none focus:ring-2 focus:ring-violet-400"
+                  title="Apre il Correttore AI con questo testo — il campo resta invariato">
+            &#x2728; Migliora con l'AI
+          </button>
+        </div>
         <textarea id="ods-desc" rows="3"
                   x-model="formDescrizione"
                   placeholder="Dettagli aggiuntivi, contesto, note del CSE…"

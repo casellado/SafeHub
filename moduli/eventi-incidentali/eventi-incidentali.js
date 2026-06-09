@@ -475,6 +475,12 @@ function EventiIncidentali() {
       return nc ? (nc.descrizione?.slice(0, 55) ?? ncId) : ncId;
     },
 
+    migliora(campo) {
+      if (typeof apriCorrettoreConTesto === 'undefined') return;
+      const titoli = { descrizione: 'Evento Incidentale — Descrizione' };
+      apriCorrettoreConTesto(this.formDati[campo] ?? '', titoli[campo] ?? campo);
+    },
+
     _imprese()    { return this.imprese; },
     _lavoratori() { return this.lavoratoriFiltrati; },
   };
@@ -885,9 +891,18 @@ const _TEMPLATE_EI = `
 
       <!-- Descrizione -->
       <div>
-        <label for="ev-descrizione" class="block text-xs font-medium text-slate-700 mb-1">
-          Descrizione / dinamica dell'evento <span class="text-red-500">*</span>
-        </label>
+        <div class="flex items-center justify-between mb-1">
+          <label for="ev-descrizione" class="block text-xs font-medium text-slate-700">
+            Descrizione / dinamica dell'evento <span class="text-red-500">*</span>
+          </label>
+          <button @click="migliora('descrizione')" type="button"
+                  class="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800
+                         px-2.5 py-1 rounded-lg border border-violet-200 hover:bg-violet-50
+                         transition-colors focus:outline-none focus:ring-2 focus:ring-violet-400"
+                  title="Apre il Correttore AI con questo testo — il campo resta invariato">
+            &#x2728; Migliora con l'AI
+          </button>
+        </div>
         <textarea id="ev-descrizione" rows="4"
                   x-model="formDati.descrizione"
                   placeholder="Descrivi la dinamica del fatto: cosa è successo, in quale circostanza, sequenza degli eventi…"

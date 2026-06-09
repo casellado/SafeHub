@@ -951,6 +951,12 @@ function DiarioCse() {
       return _TIPI_DIARIO.find(t => t.valore === tipo) ?? _TIPI_DIARIO.at(-1);
     },
 
+    migliora(campo) {
+      if (typeof apriCorrettoreConTesto === 'undefined') return;
+      const titoli = { descrizione: 'Diario CSE — Descrizione' };
+      apriCorrettoreConTesto(this.formDati[campo] ?? '', titoli[campo] ?? campo);
+    },
+
     _tipiDiario() { return _TIPI_DIARIO; },
   };
 }
@@ -1305,9 +1311,18 @@ const _TEMPLATE_DIARIO = `
 
       <!-- Descrizione -->
       <div>
-        <label for="diario-descrizione" class="block text-xs font-medium text-slate-700 mb-1">
-          Descrizione
-        </label>
+        <div class="flex items-center justify-between mb-1">
+          <label for="diario-descrizione" class="block text-xs font-medium text-slate-700">
+            Descrizione
+          </label>
+          <button @click="migliora('descrizione')" type="button"
+                  class="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800
+                         px-2.5 py-1 rounded-lg border border-violet-200 hover:bg-violet-50
+                         transition-colors focus:outline-none focus:ring-2 focus:ring-violet-400"
+                  title="Apre il Correttore AI con questo testo — il campo resta invariato">
+            &#x2728; Migliora con l'AI
+          </button>
+        </div>
         <textarea id="diario-descrizione" rows="4" x-model="formDati.descrizione"
                   placeholder="Dettaglio dell'annotazione…"
                   class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm resize-none
