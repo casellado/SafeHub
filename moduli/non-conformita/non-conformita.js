@@ -31,6 +31,132 @@ const NOTE_NORMATIVE_NC = [
   },
 ];
 
+// ── Helper export DOCX — NC per singola impresa ──────────────────────────────
+
+/** Intestazione standard per il documento NC-per-impresa. */
+function _intestazioneNc() {
+  const m   = IMPOSTAZIONI_SERVICE.modulo('non-conformita');
+  const bad = new Set(['non-conformita', '']);
+  const _ok = (v, def) => (!v || bad.has(v)) ? def : v;
+  return {
+    modulo_titolo:   _ok(m.titolo,   'Comunicazione non conformità'),
+    modulo_codice:   _ok(m.codice,   ''),
+    modulo_versione: _ok(m.versione, ''),
+    logo_aziendale:  IMPOSTAZIONI_SERVICE.logo()?.png_base64 ?? null,
+  };
+}
+
+/** Download DOCX con link temporaneo (pattern identico a PSC/scadenze). */
+function _scaricaBlobNc(blob, nome) {
+  const url = URL.createObjectURL(blob);
+  const a   = document.createElement('a');
+  a.href = url; a.download = nome; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+// Etichette livello NC (inline — fuori dal componente Alpine)
+const _NC_LIVELLO_LABEL = { gravissima: 'Gravissima', grave: 'Grave', media: 'Media', lieve: 'Lieve' };
+
+/**
+ * Genera il corpo HTML per la comunicazione NC aperte/in risoluzione
+ * di una singola impresa. ASINCRONA: chiama NC_SERVICE.leggiNC per
+ * leggere i file JSON da filesystem.
+ * Pattern identico a generaCorpoHtmlScadenzeImpresa / conformitaImpresa.
+ * @param {string} impresaId
+ * @param {string} cantiereId
+ * @returns {Promise<string>}
+ */
+async function generaCorpoHtmlNcImpresa(impresaId, cantiereId) {
+  const esc   = (s) => UTILS.escapeHtml(s ?? '');
+  const lotto = ANAGRAFICA_SERVICE.dati?.lotto ?? {};
+  const p     = [];
+
+  // I/O: legge le NC dal filesystem (tutte le sottocartelle, deduplicato)
+  const tutte     = await NC_SERVICE.leggiNC(cantiereId);
+  const ncImpresa = tutte.filter(nc =>
+    nc.impresa_id === impresaId &&
+    ['APERTA', 'IN_RISOLUZIONE'].includes(nc.stato_risoluzione)
+  );
+
+  const imp = (ANAGRAFICA_SERVICE.dati?.imprese ?? []).find(i => i.id === impresaId);
+  const cse    = IMPOSTAZIONI_SERVICE.cse();
+  const firm   = IMPOSTAZIONI_SERVICE.firma();
+  const cseImg = await _scalafirma(firm?.firma_png_base64 ?? null);
+
+  // ── 1. Intestazione documento ────────────────────────────────────────────
+  const codCant     = esc(Alpine.store('cantiere')?.id ?? lotto.id ?? '');
+  const nomeCant    = esc(lotto.nome ?? '');
+  const impresaNome = esc(imp?.ragioneSociale?.trim() || impresaId);
+
+  p.push(`<p data-line="exact280"><strong>Cantiere:</strong> ${codCant}${nomeCant ? ' — ' + nomeCant : ''}</p>`);
+  if (lotto.committente) p.push(`<p data-line="exact280"><strong>Committente:</strong> ${esc(lotto.committente)}</p>`);
+  p.push(`<p data-line="exact280"><strong>Impresa:</strong> ${impresaNome}</p>`);
+  p.push(`<p data-line="exact280"><strong>Data:</strong> ${esc(UTILS.formatData(new Date().toISOString()))}</p>`);
+  p.push(`<p data-after="200">&nbsp;</p>`);
+
+  p.push(`<h2>Comunicazione non conformità</h2>`);
+
+  // ── 2. Corpo: nessuna NC o tabella ───────────────────────────────────────
+  if (ncImpresa.length === 0) {
+    p.push(`<p>Nessuna non conformità aperta o in risoluzione per questa impresa.</p>`);
+  } else {
+    p.push(`<p>Si comunicano le seguenti non conformità ancora aperte o in fase di risoluzione ` +
+           `attribuite all'impresa. Si richiede di provvedere alla risoluzione nei termini indicati ` +
+           `e di comunicare le azioni intraprese al Coordinatore per la Sicurezza in Esecuzione.</p>`);
+    p.push(`<p data-after="120">&nbsp;</p>`);
+
+    p.push(`<h3>Non conformità pendenti</h3>`);
+    p.push(`<table>`);
+    p.push(`<thead><tr>` +
+           `<th>Descrizione</th>` +
+           `<th>Livello</th>` +
+           `<th>Data rilevazione</th>` +
+           `<th>Scadenza risoluzione</th>` +
+           `<th>Stato</th>` +
+           `</tr></thead>`);
+    p.push(`<tbody>`);
+
+    // Ordine: gravissima → grave → media → lieve, poi per data rilevazione
+    const ORD_LIV = { gravissima: 0, grave: 1, media: 2, lieve: 3 };
+    const ordinate = [...ncImpresa].sort((a, b) => {
+      const dl = (ORD_LIV[a.livello] ?? 4) - (ORD_LIV[b.livello] ?? 4);
+      if (dl !== 0) return dl;
+      return (a.data_rilevazione ?? '').localeCompare(b.data_rilevazione ?? '');
+    });
+
+    for (const nc of ordinate) {
+      const livello   = esc(_NC_LIVELLO_LABEL[nc.livello] ?? nc.livello ?? '—');
+      const dataRil   = nc.data_rilevazione  ? esc(UTILS.formatData(nc.data_rilevazione + 'T12:00:00Z'))  : '—';
+      const dataScad  = nc.scadenza_risoluzione ? esc(UTILS.formatData(nc.scadenza_risoluzione + 'T12:00:00Z')) : '—';
+      const statoStr  = nc.stato_risoluzione === 'IN_RISOLUZIONE' ? 'In risoluzione' : 'Aperta';
+      const desc      = esc((nc.descrizione ?? '').slice(0, 200) || '(senza descrizione)');
+      p.push(`<tr>` +
+             `<td>${desc}</td>` +
+             `<td>${livello}</td>` +
+             `<td>${dataRil}</td>` +
+             `<td>${dataScad}</td>` +
+             `<td>${statoStr}</td>` +
+             `</tr>`);
+    }
+
+    p.push(`</tbody></table>`);
+    p.push(`<p data-after="120">&nbsp;</p>`);
+    p.push(`<p>Si richiede di comunicare le azioni correttive intraprese e la data prevista di chiusura ` +
+           `per ciascuna non conformità.</p>`);
+  }
+
+  // ── 3. Firma CSE in calce ────────────────────────────────────────────────
+  const pr      = 'data-align="center" style="padding-left:52%;text-align:center"';
+  const cseNome = esc(cse?.nome_cognome ?? '');
+  p.push(`<p data-before="300">&nbsp;</p>`);
+  p.push(`<p ${pr}>Il Coordinatore per l'Esecuzione</p>`);
+  if (cseNome) p.push(`<p ${pr}>${cseNome}</p>`);
+  if (cseImg)  p.push(`<p ${pr}><img src="${cseImg}" alt="firma CSE"></p>`);
+  p.push(`<p ${pr}>${esc(UTILS.formatData(new Date().toISOString()))}</p>`);
+
+  return p.join('\n');
+}
+
 // ── Componente Alpine ─────────────────────────────────────────────────────────
 
 function NonConformita() {
@@ -49,6 +175,11 @@ function NonConformita() {
 
     _cantiereId:  null,
     noteAperte:   false,
+
+    // Export DOCX per singola impresa
+    impresaExportId: '',
+    exportando:      false,
+    avvisoOrfane:    0,    // NC aperte/in-risoluzione senza impresa_id
 
     // ── Computed ─────────────────────────────────────────────────────────────
 
@@ -246,6 +377,41 @@ function NonConformita() {
     },
 
     _imprese() { return this.imprese; },
+
+    // ── Export DOCX NC per singola impresa ───────────────────────────────────
+
+    async esportaNcImpresa() {
+      if (!this.impresaExportId || this.exportando) return;
+      this.exportando   = true;
+      this.avvisoOrfane = 0;
+      try {
+        // Rileva NC orfane (aperte/in risoluzione senza impresa assegnata)
+        const tutte   = await NC_SERVICE.leggiNC(this._cantiereId);
+        const orfane  = tutte.filter(nc =>
+          !nc.impresa_id &&
+          ['APERTA', 'IN_RISOLUZIONE'].includes(nc.stato_risoluzione)
+        );
+        this.avvisoOrfane = orfane.length;
+
+        // Genera corpo HTML (asincrono — legge file)
+        const corpo = await generaCorpoHtmlNcImpresa(this.impresaExportId, this._cantiereId);
+        const out   = await MOTORE_DOCX.generaDocumento({
+          tipo:       'non-conformita',
+          header:     _intestazioneNc(),
+          corpo_html: corpo,
+          formati:    { docx: true },
+        });
+        const imp      = this.imprese.find(i => i.id === this.impresaExportId);
+        const nomeSlug = (imp?.ragioneSociale ?? this.impresaExportId)
+          .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        _scaricaBlobNc(out.docxBlob, `nc-${this._cantiereId}-${nomeSlug}.docx`);
+        NOTIFICHE.successo('Esportato', `DOCX NC scaricato per ${imp?.ragioneSociale ?? this.impresaExportId}.`);
+      } catch (err) {
+        ERRORI.gestisciErrore('non-conformita/esporta-impresa', err);
+      } finally {
+        this.exportando = false;
+      }
+    },
 
   };
 }
@@ -643,6 +809,64 @@ const _TEMPLATE_NC = `
     </div>
 
   </div><!-- /drawer -->
+
+  <!-- ── Export DOCX NC per singola impresa ──────────────────────────────── -->
+  <div x-show="!caricamento && imprese.length > 0"
+       class="mt-8 border border-slate-200 rounded-xl p-4 bg-slate-50">
+
+    <h2 class="text-sm font-semibold text-slate-700 mb-3">
+      📋 Esporta NC per impresa
+    </h2>
+    <p class="text-xs text-slate-400 mb-3">
+      Genera un DOCX con le non conformità ancora aperte o in risoluzione
+      dell'impresa selezionata, pronto da allegare alla mail.
+    </p>
+
+    <!-- Avviso NC orfane (al PO, non nel DOCX) -->
+    <div x-show="avvisoOrfane > 0"
+         class="mb-3 flex items-start gap-2 px-3 py-2 rounded-lg
+                border border-amber-300 bg-amber-50 text-amber-800 text-xs">
+      <span aria-hidden="true" class="flex-shrink-0 text-base">⚠</span>
+      <span>
+        <strong x-text="avvisoOrfane"></strong>
+        NC aperte senza impresa assegnata — non incluse in nessun export per impresa.
+        Verificale nel modulo NC e assegna l'impresa.
+      </span>
+    </div>
+
+    <div class="flex flex-wrap gap-3 items-end">
+
+      <div class="flex-1 min-w-48">
+        <label for="nc-export-impresa" class="block text-xs font-medium text-slate-600 mb-1">
+          Impresa
+        </label>
+        <select id="nc-export-impresa"
+                x-model="impresaExportId"
+                class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm
+                       focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">— Seleziona impresa —</option>
+          <template x-for="imp in imprese" :key="imp.id">
+            <option :value="imp.id" x-text="imp.ragioneSociale || imp.id"></option>
+          </template>
+        </select>
+      </div>
+
+      <button @click="esportaNcImpresa()"
+              :disabled="!impresaExportId || exportando"
+              type="button"
+              class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
+                     bg-blue-600 text-white hover:bg-blue-700
+                     disabled:opacity-50 disabled:cursor-not-allowed
+                     transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <span x-show="!exportando" aria-hidden="true">📥</span>
+        <span x-show="exportando"
+              class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"
+              aria-hidden="true"></span>
+        <span x-text="exportando ? 'Generazione…' : 'Genera DOCX'"></span>
+      </button>
+
+    </div>
+  </div><!-- /export NC impresa -->
 
 </div>
 `;
