@@ -226,22 +226,20 @@ const AI_RAG = (() => {
   // ── Costruzione contesto per il prompt ──────────────────────────────────────
 
   /**
-   * Formatta i chunk come testo da iniettare nel prompt utente (davanti alla bozza).
-   * Il modello deve citare SOLO i RIFERIMENTO listati qui.
+   * Formatta i chunk come testo discorsivo da iniettare nel prompt utente.
+   * Forma discorsiva (no campi-etichetta in maiuscolo) per evitare che modelli
+   * piccoli generalizzino il pattern "ETICHETTA: valore" e lo ricopino nell'output.
    * @param {object[]} chunks
    * @returns {string}
    */
   const costruisciContesto = (chunks) => {
     if (!chunks.length) return '';
-    const righe = chunks.map((c, i) => [
-      `${i + 1}. RIFERIMENTO: ${c.riferimento}`,
-      `   FONTE: ${c.fonte}`,
-      `   TITOLO: ${c.titolo}`,
-      `   TESTO: ${c.testo}`,
-    ].join('\n'));
+    const righe = chunks.map((c, i) =>
+      `${i + 1}) ${c.titolo}. ${c.testo} (Quando citi questa norma usa esattamente: ${c.riferimento} — ${c.fonte}.)`
+    );
 
     return [
-      'Riferimenti normativi da utilizzare (cita solo questi, riportando il campo RIFERIMENTO esattamente come appare):',
+      'Norme che puoi citare (usa solo queste; per ogni norma citata riporta esattamente la dicitura indicata tra parentesi):',
       '',
       ...righe,
       '',
