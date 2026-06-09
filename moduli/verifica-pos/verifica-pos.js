@@ -525,6 +525,12 @@ function VerificaPos() {
       return { idoneo:'Idoneo', idoneo_integrazioni:'Idoneo con integrazioni', non_idoneo:'NON idoneo' }
              [this.corrente?.esito] ?? 'Esito non selezionato';
     },
+
+    migliora(elId, titolo) {
+      if (typeof apriCorrettoreConTesto === 'undefined') return;
+      const el = document.getElementById(elId);
+      apriCorrettoreConTesto(el ? (el.innerText ?? '') : '', titolo);
+    },
   };
 }
 
@@ -923,10 +929,19 @@ const _TEMPLATE_VP = /* html */`
           </fieldset>
 
           <!-- Note (SEMPRE disponibili, editor ricco) -->
-          <h3 class="text-sm font-semibold text-slate-700 mb-2">
-            Note
-            <span class="text-xs font-normal text-slate-400 ml-1">— sempre presente (integrazioni richieste, motivazione, ecc.)</span>
-          </h3>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-semibold text-slate-700">
+              Note
+              <span class="text-xs font-normal text-slate-400 ml-1">— sempre presente (integrazioni richieste, motivazione, ecc.)</span>
+            </h3>
+            <button @click="migliora('ed-note-vp', 'Note verifica')" type="button"
+                    class="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800
+                           px-2.5 py-1 rounded-lg border border-violet-200 hover:bg-violet-50
+                           transition-colors focus:outline-none focus:ring-2 focus:ring-violet-400"
+                    title="Apre il Correttore AI con questo testo — il campo resta invariato">
+              &#x2728; Migliora con l'AI
+            </button>
+          </div>
           <div class="editor-ricco-wrapper mb-4">
             <div class="editor-toolbar" role="toolbar" aria-label="Formattazione note">
               <button type="button" @mousedown.prevent="edBoldNote()"><strong>B</strong></button>

@@ -692,6 +692,12 @@ function VerbaleRiunione() {
                FINALIZZATO_DA_PROTOCOLLARE:'bg-blue-100 text-blue-800',
                PROTOCOLLATO:'bg-green-100 text-green-800' }[stato] ?? 'bg-slate-100 text-slate-600';
     },
+
+    migliora(elId, titolo) {
+      if (typeof apriCorrettoreConTesto === 'undefined') return;
+      const el = document.getElementById(elId);
+      apriCorrettoreConTesto(el ? (el.innerText ?? '') : '', titolo);
+    },
   };
 }
 
@@ -1322,7 +1328,16 @@ const _TEMPLATE_VR = /* html */`
             </button>
           </div>
 
-          <h3 class="text-sm font-semibold text-slate-700 mb-2">Svolgimento della riunione</h3>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-semibold text-slate-700">Svolgimento della riunione</h3>
+            <button @click="migliora('ed-racconto', 'Racconto libero')" type="button"
+                    class="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800
+                           px-2.5 py-1 rounded-lg border border-violet-200 hover:bg-violet-50
+                           transition-colors focus:outline-none focus:ring-2 focus:ring-violet-400"
+                    title="Apre il Correttore AI con questo testo — il campo resta invariato">
+              &#x2728; Migliora con l'AI
+            </button>
+          </div>
           <p class="text-xs text-slate-400 mb-2">Narrazione di quanto discusso, concordato e rilevato.</p>
           <div class="editor-ricco-wrapper mb-6">
             <div class="editor-toolbar" role="toolbar" aria-label="Formattazione testo">
@@ -1340,7 +1355,16 @@ const _TEMPLATE_VR = /* html */`
                  class="editor-area"></div>
           </div>
 
-          <h3 class="text-sm font-semibold text-slate-700 mb-2">Criticità riscontrate ed Osservazioni Emerse</h3>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-semibold text-slate-700">Criticità riscontrate ed Osservazioni Emerse</h3>
+            <button @click="migliora('ed-criticita', 'Criticità e osservazioni')" type="button"
+                    class="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800
+                           px-2.5 py-1 rounded-lg border border-violet-200 hover:bg-violet-50
+                           transition-colors focus:outline-none focus:ring-2 focus:ring-violet-400"
+                    title="Apre il Correttore AI con questo testo — il campo resta invariato">
+              &#x2728; Migliora con l'AI
+            </button>
+          </div>
           <div class="editor-ricco-wrapper mb-6">
             <div class="editor-toolbar" role="toolbar">
               <button type="button" @mousedown.prevent="edBold('ed-criticita')"><strong>B</strong></button>
@@ -1357,7 +1381,16 @@ const _TEMPLATE_VR = /* html */`
                  class="editor-area"></div>
           </div>
 
-          <h3 class="text-sm font-semibold text-slate-700 mb-2">Istruzioni operative e Decisioni Intraprese</h3>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-semibold text-slate-700">Istruzioni operative e Decisioni Intraprese</h3>
+            <button @click="migliora('ed-istruzioni', 'Istruzioni e decisioni')" type="button"
+                    class="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800
+                           px-2.5 py-1 rounded-lg border border-violet-200 hover:bg-violet-50
+                           transition-colors focus:outline-none focus:ring-2 focus:ring-violet-400"
+                    title="Apre il Correttore AI con questo testo — il campo resta invariato">
+              &#x2728; Migliora con l'AI
+            </button>
+          </div>
           <div class="editor-ricco-wrapper mb-4">
             <div class="editor-toolbar" role="toolbar">
               <button type="button" @mousedown.prevent="edBold('ed-istruzioni')"><strong>B</strong></button>
