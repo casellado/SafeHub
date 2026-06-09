@@ -765,8 +765,10 @@ const _TEMPLATE_IMPOSTAZIONI = `
       </template>
 
       <p class="text-xs text-slate-400 mt-1">
-        Sul PC sviluppo (CPU-only): <code class="bg-slate-100 px-1 rounded">llama3.2:3b</code> più veloce.
-        Sul PC ufficio (con VRAM): <code class="bg-slate-100 px-1 rounded">gemma2:9b</code> più capace.
+        Seleziona dalla lista sopra il modello che hai installato con Ollama
+        (es. <code class="bg-slate-100 px-1 rounded">gemma3:4b</code>,
+        <code class="bg-slate-100 px-1 rounded">llama3.2:3b</code>, ecc.).
+        Se la lista è vuota, avvia prima Ollama.
       </p>
     </div>
 

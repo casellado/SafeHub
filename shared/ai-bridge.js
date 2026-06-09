@@ -97,7 +97,20 @@ const AI_BRIDGE = (() => {
     }
 
     if (!res.ok) {
-      throw new Error(`Assistente AI: risposta ${res.status} da Ollama.`);
+      // Legge il body per un messaggio leggibile dall'API Ollama
+      let errMsg;
+      try {
+        const errData = await res.json();
+        const ollamaErr = errData.error ?? '';
+        if (res.status === 404 || /not found|not load/i.test(ollamaErr)) {
+          errMsg = 'Modello AI non trovato. Vai in Impostazioni → Assistente AI e seleziona un modello installato (o scaricalo con Ollama).';
+        } else {
+          errMsg = `Assistente AI: ${ollamaErr || `risposta ${res.status} da Ollama.`}`;
+        }
+      } catch {
+        errMsg = `Assistente AI: risposta ${res.status} da Ollama.`;
+      }
+      throw new Error(errMsg);
     }
 
     // ── Lettura streaming con line-buffering ─────────────────────────────────

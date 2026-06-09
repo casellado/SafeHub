@@ -2,7 +2,8 @@
 setlocal enabledelayedexpansion
 
 :: SafeHub Archivio — Server locale
-:: Versione robusta: cartella fissa, Python automatico, porta libera
+:: Porta FISSA 8080: l'icona PWA installata da Edge dipende dall'origine
+:: http://localhost:8080 — non cambiare porta o l'icona smettera' di funzionare.
 
 :: ── 1. Cartella: sempre quella dello script, qualunque sia il cwd di chi lo lancia
 ::    %~dp0 = drive+path del file .bat, con backslash finale (es. C:\Progetti\safehub\)
@@ -50,26 +51,30 @@ if "!PYTHON!"=="" (
     exit /b 1
 )
 
-:: ── 4. Trova prima porta libera a partire da 8080
-::    netstat -an elenca le connessioni TCP; cerchiamo una porta in stato LISTENING.
-::    Se occupata incrementiamo fino a 8099.
-set PORT=8080
-:find_free_port
-netstat -an 2>nul | findstr /C:":%PORT% " | findstr /I "LISTENING" >nul 2>&1
+:: ── 4. Verifica porta 8080 (porta FISSA — non si cambia)
+::    Se occupata: SafeHub e' gia' in esecuzione, oppure un altro programma usa 8080.
+::    Non si scivola su 8081: l'icona PWA e' agganciata a http://localhost:8080.
+netstat -an 2>nul | findstr /C:":8080 " | findstr /I "LISTENING" >nul 2>&1
 if not errorlevel 1 (
-    :: errorlevel 0 = findstr ha trovato la porta in LISTENING = occupata
-    set /a PORT=PORT+1
-    if !PORT! lss 8100 goto find_free_port
-    echo  Nessuna porta libera tra 8080 e 8099.
-    echo  Chiudi altre applicazioni che usano quelle porte e riprova.
+    echo  Porta 8080 gia' occupata.
+    echo.
+    echo  SafeHub e' gia' avviato? Apri l'app dall'icona sul desktop.
+    echo  Altrimenti chiudi il programma che usa la porta 8080 e riprova.
     echo.
     pause
     exit /b 1
 )
 
 echo  Cartella : %CD%
-echo  Apri Edge o Chrome su: http://localhost:%PORT%
-echo  Premi Ctrl+C per fermare il server.
+echo  Indirizzo: http://localhost:8080
 echo.
-!PYTHON! -m http.server !PORT!
+echo  *** Tieni questa finestra aperta mentre usi SafeHub.          ***
+echo  *** Chiudila solo per spegnere il server a fine giornata.     ***
+echo.
+
+:: ── 5. Apri il browser automaticamente (Edge/Chrome/default)
+start "" "http://localhost:8080"
+
+:: ── 6. Avvia il server con Cache-Control: no-store (server.py — come avvia.sh)
+!PYTHON! server.py 8080
 pause
