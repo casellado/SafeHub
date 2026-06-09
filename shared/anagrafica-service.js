@@ -1066,6 +1066,88 @@ const ANAGRAFICA_SERVICE = (() => {
   };
 
   // ================================================================
+  // Scadenze per singola impresa (per comunicazione/export DOCX)
+  // ================================================================
+
+  /**
+   * Raccoglie le scadenze problematiche di una singola impresa e di tutte
+   * le sue entità collegate (lavoratori, mezzi, attrezzature, noli).
+   * Riusa i calcolaScadenze* già usati da _aggrega() del cruscotto.
+   * Funzione pura: legge _dati, zero I/O.
+   *
+   * @param {string} impresaId
+   * @returns {{ impresaLabel:string, sezioni:Array } | null}
+   *   sezioni: [{ id, label, icona, voci:[{entitaLabel,label,scadenza,giorni,stato,criticita}] }]
+   *   null se l'impresa non esiste nei dati caricati.
+   */
+  const calcolaScadenzePerImpresa = (impresaId) => {
+    if (!_dati || !impresaId) return null;
+
+    const imp = (_dati.imprese ?? []).find(i => i.id === impresaId && !i._cestino);
+    if (!imp) return null;
+
+    const impresaLabel = imp.ragioneSociale?.trim() || imp.id;
+
+    // Converti array di scadenze in voci con entitaLabel
+    const _toVoci = (scadenze, entitaLabel) =>
+      scadenze.map(s => ({ entitaLabel, label: s.label, scadenza: s.scadenza, giorni: s.giorni, stato: s.stato, criticita: s.criticita }));
+
+    // Scadenze dirette dell'impresa (documenti[] con scadenza)
+    const voceImpresa = _toVoci(calcolaScadenzeImpresa(imp), impresaLabel);
+
+    // Patente crediti — conformità permanente senza data, trattata a parte come in _aggrega()
+    const conf = calcolaConformita(imp);
+    for (const _prob of conf.problemi.filter(pr => pr.tipo === 'patente_crediti' && pr.livello === 'rosso_critico')) {
+      voceImpresa.push({
+        entitaLabel: impresaLabel,
+        label:       'Patente a crediti',
+        scadenza:    null, giorni: null, stato: null,
+        criticita:   'critica',
+      });
+    }
+
+    // Lavoratori dell'impresa
+    const voceLav = (_dati.lavoratori ?? [])
+      .filter(l => !l._cestino && l.impresa_id === impresaId)
+      .flatMap(l => _toVoci(
+        calcolaScadenzeLavoratore(l),
+        [l.cognome, l.nome].filter(Boolean).join(' ') || l.id,
+      ));
+
+    // Mezzi dell'impresa
+    const voceMezzi = (_dati.mezzi ?? [])
+      .filter(m => !m._cestino && m.impresa_id === impresaId)
+      .flatMap(m => _toVoci(
+        calcolaScadenzeMezzo(m),
+        [m.marca, m.modello].filter(Boolean).join(' ') || m.tipologia || m.id,
+      ));
+
+    // Attrezzature dell'impresa
+    const voceAtt = (_dati.attrezzature ?? [])
+      .filter(a => !a._cestino && a.impresa_id === impresaId)
+      .flatMap(a => _toVoci(
+        calcolaScadenzeAttrezzatura(a),
+        a.descrizione || a.tipologia || a.id,
+      ));
+
+    // Noli dove l'impresa è utilizzatrice
+    const voceNoli = (_dati.noli ?? [])
+      .filter(n => !n._cestino && n.impresa_utilizzatrice_id === impresaId)
+      .flatMap(n => _toVoci(calcolaScadenzeNolo(n), n.oggetto || n.id));
+
+    return {
+      impresaLabel,
+      sezioni: [
+        { id: 'impresa',      label: 'Documenti aziendali', icona: '🏢', voci: voceImpresa },
+        { id: 'lavoratori',   label: 'Lavoratori',          icona: '👷', voci: voceLav    },
+        { id: 'mezzi',        label: 'Mezzi',               icona: '🚜', voci: voceMezzi  },
+        { id: 'attrezzature', label: 'Attrezzature',        icona: '🔧', voci: voceAtt    },
+        { id: 'noli',         label: 'Noli',                icona: '🔗', voci: voceNoli   },
+      ],
+    };
+  };
+
+  // ================================================================
   // Esposizione pubblica
   // ================================================================
   return {
@@ -1079,6 +1161,7 @@ const ANAGRAFICA_SERVICE = (() => {
     calcolaConformitaNolo, calcolaScadenzeNolo, collegaNolo,
     calcolaConformitaMezzo, calcolaScadenzeMezzo,
     calcolaConformitaAttrezzatura, calcolaScadenzeAttrezzatura,
+    calcolaScadenzePerImpresa,
     creaEntitaVuota,
     get dati()        { return _dati; },
     get isCaricato()  { return _dati !== null; },

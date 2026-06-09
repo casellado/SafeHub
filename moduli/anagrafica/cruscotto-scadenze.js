@@ -10,7 +10,134 @@
  *
  * LIVELLO B (multi-cantiere / M25): rimandato a dopo Fase 7 quando ci sono
  * cantieri reali popolati su cui testarlo.
+ *
+ * Export DOCX: bottone "Esporta scadenze per impresa" → MOTORE_DOCX via
+ * generaCorpoHtmlScadenzeImpresa() + ANAGRAFICA_SERVICE.calcolaScadenzePerImpresa().
  */
+
+// ── Helper export DOCX — scadenze per singola impresa ────────────────────────
+
+/** Intestazione standard per il documento scadenze-impresa. */
+function _intestazioneScadenze() {
+  const m   = IMPOSTAZIONI_SERVICE.modulo('scadenze-impresa');
+  const bad = new Set(['scadenze-impresa', '']);
+  const _ok = (v, def) => (!v || bad.has(v)) ? def : v;
+  return {
+    modulo_titolo:   _ok(m.titolo,   'Comunicazione scadenze documentali'),
+    modulo_codice:   _ok(m.codice,   ''),
+    modulo_versione: _ok(m.versione, ''),
+    logo_aziendale:  IMPOSTAZIONI_SERVICE.logo()?.png_base64 ?? null,
+  };
+}
+
+/** Download DOCX con link temporaneo (pattern identico a PSC/Diario). */
+function _scaricaBlobScadenze(blob, nome) {
+  const url = URL.createObjectURL(blob);
+  const a   = document.createElement('a');
+  a.href = url; a.download = nome; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+/**
+ * Genera il corpo HTML per la comunicazione scadenze di una singola impresa.
+ * Pattern identico a generaCorpoHtmlCorpusPsc: funzione asincrona pura,
+ * array di parti p[], join finale. _scalafirma da flusso-b-helpers.js (globale).
+ * @param {string} impresaId
+ * @param {string} cantiereId
+ * @returns {Promise<string>}
+ */
+async function generaCorpoHtmlScadenzeImpresa(impresaId, cantiereId) {
+  const esc   = (s) => UTILS.escapeHtml(s ?? '');
+  const lotto = ANAGRAFICA_SERVICE.dati?.lotto ?? {};
+  const p     = [];
+
+  const result = ANAGRAFICA_SERVICE.calcolaScadenzePerImpresa(impresaId);
+  if (!result) {
+    p.push(`<p><em>Impresa non trovata.</em></p>`);
+    return p.join('\n');
+  }
+
+  const cse    = IMPOSTAZIONI_SERVICE.cse();
+  const firm   = IMPOSTAZIONI_SERVICE.firma();
+  const cseImg = await _scalafirma(firm?.firma_png_base64 ?? null);
+
+  // ── 1. Intestazione documento ────────────────────────────────────────────
+  const codCant  = esc(cantiereId || lotto.id || '');
+  const nomeCant = esc(lotto.nome ?? '');
+
+  p.push(`<p data-line="exact280"><strong>Cantiere:</strong> ${codCant}${nomeCant ? ' — ' + nomeCant : ''}</p>`);
+  if (lotto.committente) p.push(`<p data-line="exact280"><strong>Committente:</strong> ${esc(lotto.committente)}</p>`);
+  p.push(`<p data-line="exact280"><strong>Impresa:</strong> ${esc(result.impresaLabel)}</p>`);
+  p.push(`<p data-line="exact280"><strong>Data:</strong> ${esc(UTILS.formatData(new Date().toISOString()))}</p>`);
+  p.push(`<p data-after="200">&nbsp;</p>`);
+
+  p.push(`<h2>Comunicazione scadenze documentali</h2>`);
+  p.push(`<p>Si segnalano le seguenti scadenze documentali scadute o prossime alla scadenza, ` +
+         `relative all'impresa e al suo personale/mezzi operanti sul cantiere. ` +
+         `Si richiede di provvedere al rinnovo e di trasmettere la relativa documentazione aggiornata.</p>`);
+  p.push(`<p data-after="160">&nbsp;</p>`);
+
+  // ── 2. Una sezione per categoria ─────────────────────────────────────────
+  let haAlcunaVoce = false;
+
+  for (const sez of result.sezioni) {
+    if (sez.voci.length === 0) continue;
+    haAlcunaVoce = true;
+
+    p.push(`<h3>${sez.icona} ${esc(sez.label)}</h3>`);
+    p.push(`<table>`);
+    p.push(`<thead><tr>` +
+           `<th>Nominativo / Bene</th>` +
+           `<th>Documento / Adempimento</th>` +
+           `<th>Scadenza</th>` +
+           `<th>Giorni</th>` +
+           `<th>Stato</th>` +
+           `</tr></thead>`);
+    p.push(`<tbody>`);
+
+    // Ordine: no-date → scadute → in-scadenza, poi per urgenza
+    const ordinate = [...sez.voci].sort((a, b) => {
+      const aNoDate = a.giorni === null, bNoDate = b.giorni === null;
+      if (aNoDate !== bNoDate) return aNoDate ? -1 : 1;
+      return (a.giorni ?? 0) - (b.giorni ?? 0);
+    });
+
+    for (const v of ordinate) {
+      const scadStr   = v.scadenza ? esc(UTILS.formatData(v.scadenza + 'T12:00:00Z')) : '—';
+      const giorniStr = v.giorni === null          ? '—'
+                      : v.giorni < 0               ? `${Math.abs(v.giorni)} gg fa`
+                      :                              `tra ${v.giorni} gg`;
+      const statoStr  = v.stato === 'scaduto'      ? 'SCADUTO'
+                      : v.stato === 'in_scadenza'   ? 'In scadenza'
+                      :                              '⛔ Verifica stato';
+      p.push(`<tr>` +
+             `<td>${esc(v.entitaLabel)}</td>` +
+             `<td>${esc(v.label)}</td>` +
+             `<td>${scadStr}</td>` +
+             `<td>${giorniStr}</td>` +
+             `<td>${statoStr}</td>` +
+             `</tr>`);
+    }
+
+    p.push(`</tbody></table>`);
+    p.push(`<p data-after="120">&nbsp;</p>`);
+  }
+
+  if (!haAlcunaVoce) {
+    p.push(`<p><em>Nessuna scadenza problematica rilevata per questa impresa alla data odierna.</em></p>`);
+  }
+
+  // ── 3. Firma CSE in calce (pattern identico a PSC) ───────────────────────
+  const pr      = 'data-align="center" style="padding-left:52%;text-align:center"';
+  const cseNome = esc(cse?.nome_cognome ?? '');
+  p.push(`<p data-before="300">&nbsp;</p>`);
+  p.push(`<p ${pr}>Il Coordinatore per l'Esecuzione</p>`);
+  if (cseNome) p.push(`<p ${pr}>${cseNome}</p>`);
+  if (cseImg)  p.push(`<p ${pr}><img src="${cseImg}" alt="firma CSE"></p>`);
+  p.push(`<p ${pr}>${esc(UTILS.formatData(new Date().toISOString()))}</p>`);
+
+  return p.join('\n');
+}
 
 // ── Componente Alpine ─────────────────────────────────────────────────────────
 
@@ -24,6 +151,10 @@ function CruscottoScadenze() {
     filtroTipoEntita: '',      // '' | 'impresa' | 'lavoratore' | 'mezzo' | 'attrezzatura' | 'nolo'
     filtroFinestra:   'tutte', // 'scadute' | '30' | '60' | '90' | 'tutte'
     cercaTesto:       '',
+
+    // Export DOCX per singola impresa
+    impresaExportId: '',
+    exportando:      false,
 
     _cantiereId: null,
 
@@ -183,6 +314,37 @@ function CruscottoScadenze() {
         if (CRIT[a.criticita] !== CRIT[b.criticita]) return CRIT[a.criticita] - CRIT[b.criticita];
         return a.entitaLabel.localeCompare(b.entitaLabel, 'it');
       });
+    },
+
+    // ── Export DOCX per singola impresa ──────────────────────────────────────
+
+    get imprese() {
+      return (ANAGRAFICA_SERVICE.dati?.imprese ?? [])
+        .filter(i => !i._cestino)
+        .sort((a, b) => (a.ragioneSociale ?? '').localeCompare(b.ragioneSociale ?? '', 'it'));
+    },
+
+    async esportaScadenzeImpresa() {
+      if (!this.impresaExportId || this.exportando) return;
+      this.exportando = true;
+      try {
+        const corpo = await generaCorpoHtmlScadenzeImpresa(this.impresaExportId, this._cantiereId);
+        const out   = await MOTORE_DOCX.generaDocumento({
+          tipo:       'scadenze-impresa',
+          header:     _intestazioneScadenze(),
+          corpo_html: corpo,
+          formati:    { docx: true },
+        });
+        const imp      = this.imprese.find(i => i.id === this.impresaExportId);
+        const nomeSlug = (imp?.ragioneSociale ?? this.impresaExportId)
+          .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        _scaricaBlobScadenze(out.docxBlob, `scadenze-${this._cantiereId}-${nomeSlug}.docx`);
+        NOTIFICHE.successo('Esportato', `DOCX scadenze scaricato per ${imp?.ragioneSociale ?? this.impresaExportId}.`);
+      } catch (err) {
+        ERRORI.gestisciErrore('cruscotto-scadenze/esporta-impresa', err);
+      } finally {
+        this.exportando = false;
+      }
     },
 
     // ── Helper UI ─────────────────────────────────────────────────────────────
@@ -374,6 +536,52 @@ const _TEMPLATE_CRUSCOTTO_SCADENZE = `
         </p>
 
       </div><!-- /entries.length > 0 -->
+
+      <!-- ── Export DOCX per singola impresa ──────────────────────────────── -->
+      <div x-show="!caricamento && imprese.length > 0"
+           class="mt-8 border border-slate-200 rounded-xl p-4 bg-slate-50">
+
+        <h2 class="text-sm font-semibold text-slate-700 mb-3">
+          📋 Esporta scadenze per impresa
+        </h2>
+        <p class="text-xs text-slate-400 mb-3">
+          Genera un DOCX con le scadenze scadute/in&nbsp;scadenza dell'impresa selezionata
+          (documenti aziendali, lavoratori, mezzi, attrezzature, noli), pronto da allegare alla mail.
+        </p>
+
+        <div class="flex flex-wrap gap-3 items-end">
+
+          <div class="flex-1 min-w-48">
+            <label for="cs-export-impresa" class="block text-xs font-medium text-slate-600 mb-1">
+              Impresa
+            </label>
+            <select id="cs-export-impresa"
+                    x-model="impresaExportId"
+                    class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm
+                           focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">— Seleziona impresa —</option>
+              <template x-for="imp in imprese" :key="imp.id">
+                <option :value="imp.id" x-text="imp.ragioneSociale || imp.id"></option>
+              </template>
+            </select>
+          </div>
+
+          <button @click="esportaScadenzeImpresa()"
+                  :disabled="!impresaExportId || exportando"
+                  type="button"
+                  class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
+                         bg-blue-600 text-white hover:bg-blue-700
+                         disabled:opacity-50 disabled:cursor-not-allowed
+                         transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <span x-show="!exportando" aria-hidden="true">📥</span>
+            <span x-show="exportando"
+                  class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"
+                  aria-hidden="true"></span>
+            <span x-text="exportando ? 'Generazione…' : 'Genera DOCX'"></span>
+          </button>
+
+        </div>
+      </div><!-- /export impresa -->
 
     </div><!-- /!caricamento -->
   </div><!-- /$store.cantiere.id -->
