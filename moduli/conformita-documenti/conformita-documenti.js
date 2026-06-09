@@ -275,6 +275,12 @@ function ConformitaDocumenti() {
       return `(tra ${giorni} gg)`;
     },
 
+    get imprese() {
+      return (ANAGRAFICA_SERVICE.dati?.imprese ?? [])
+        .filter(i => !i._cestino)
+        .sort((a, b) => (a.ragioneSociale ?? '').localeCompare(b.ragioneSociale ?? '', 'it'));
+    },
+
     async esportaConformitaImpresa(impresaId) {
       if (!impresaId || this.exportando) return;
       this.impresaExportId = impresaId;
@@ -483,25 +489,8 @@ const _TEMPLATE_CONFORMITA = `
                   ⛔ CRITICO
                 </span>
 
-                <!-- Export DOCX per questa impresa -->
-                <button @click.stop="esportaConformitaImpresa(riga.impresa.id)"
-                        :disabled="exportando"
-                        type="button"
-                        class="ml-auto flex items-center gap-1 text-xs px-2 py-1 rounded-lg border
-                               border-slate-200 bg-white text-slate-500 hover:text-slate-800
-                               hover:border-slate-300 transition-colors flex-shrink-0
-                               focus:outline-none focus:ring-2 focus:ring-slate-400
-                               disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Esporta DOCX conformità per questa impresa">
-                  <span x-show="!(exportando && impresaExportId === riga.impresa.id)"
-                        aria-hidden="true">📋</span>
-                  <span x-show="exportando && impresaExportId === riga.impresa.id"
-                        class="w-3 h-3 border-2 border-slate-500 border-t-transparent
-                               rounded-full animate-spin" aria-hidden="true"></span>
-                </button>
-
                 <!-- Link di navigazione (lato destro) -->
-                <span class="text-slate-300 text-sm select-none" aria-hidden="true">›</span>
+                <span class="ml-auto text-slate-300 text-sm select-none" aria-hidden="true">›</span>
               </div>
 
               <!-- Verde: tutto a posto, messaggio positivo -->
@@ -561,6 +550,53 @@ const _TEMPLATE_CONFORMITA = `
         </p>
 
       </div><!-- /righe.length > 0 -->
+
+      <!-- ── Export DOCX per singola impresa ──────────────────────────────── -->
+      <div x-show="!caricamento && imprese.length > 0"
+           class="mt-8 border border-slate-200 rounded-xl p-4 bg-slate-50">
+
+        <h2 class="text-sm font-semibold text-slate-700 mb-3">
+          📋 Esporta conformità per impresa
+        </h2>
+        <p class="text-xs text-slate-400 mb-3">
+          Genera un DOCX con i documenti mancanti/scaduti dell'impresa selezionata
+          (in base al tipo di rapporto), pronto da allegare alla mail.
+        </p>
+
+        <div class="flex flex-wrap gap-3 items-end">
+
+          <div class="flex-1 min-w-48">
+            <label for="cf-export-impresa" class="block text-xs font-medium text-slate-600 mb-1">
+              Impresa
+            </label>
+            <select id="cf-export-impresa"
+                    x-model="impresaExportId"
+                    class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm
+                           focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">— Seleziona impresa —</option>
+              <template x-for="imp in imprese" :key="imp.id">
+                <option :value="imp.id" x-text="imp.ragioneSociale || imp.id"></option>
+              </template>
+            </select>
+          </div>
+
+          <button @click="esportaConformitaImpresa(impresaExportId)"
+                  :disabled="!impresaExportId || exportando"
+                  type="button"
+                  class="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
+                         bg-blue-600 text-white hover:bg-blue-700
+                         disabled:opacity-50 disabled:cursor-not-allowed
+                         transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <span x-show="!exportando" aria-hidden="true">📥</span>
+            <span x-show="exportando"
+                  class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"
+                  aria-hidden="true"></span>
+            <span x-text="exportando ? 'Generazione…' : 'Genera DOCX'"></span>
+          </button>
+
+        </div>
+      </div><!-- /export impresa -->
+
     </div><!-- /!caricamento -->
   </div><!-- /$store.cantiere.id -->
 
