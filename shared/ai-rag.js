@@ -241,11 +241,11 @@ const AI_RAG = (() => {
     ].join('\n'));
 
     return [
-      '[RIFERIMENTI NORMATIVI DISPONIBILI]',
-      'Cita ESCLUSIVAMENTE i riferimenti elencati qui sotto, riportando il campo RIFERIMENTO',
-      'esattamente come appare. Per ogni punto non coperto da questi, scrivi [verificare riferimento normativo].\n',
+      'Riferimenti normativi da utilizzare (cita solo questi, riportando il campo RIFERIMENTO esattamente come appare):',
+      '',
       ...righe,
-      '\n[BOZZA DA RISCRIVERE]',
+      '',
+      'Testo da riscrivere:',
       '',
     ].join('\n');
   };
