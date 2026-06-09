@@ -764,7 +764,8 @@
       "fonte": "Circolare INL R.0000001 del 23/02/2026",
       "riferimento": "art. 5 c.1 lett. h e c.1-bis D.L. 159/2025 (conv. L. 198/2025); art. 113 c.2 e art. 115 D.Lgs. 81/2008",
       "tema": [
-        "lavori_in_quota"
+        "lavori_in_quota",
+        "dpi"
       ],
       "ambito": [
         "cantiere",

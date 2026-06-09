@@ -47,8 +47,8 @@ function NonConformita() {
     salvando:                  false,
     modificatoDopoCaricamento: false,
 
-    _cantiereId: null,
-    noteAperte:  false,
+    _cantiereId:  null,
+    noteAperte:   false,
 
     // ── Computed ─────────────────────────────────────────────────────────────
 
@@ -237,7 +237,16 @@ function NonConformita() {
       return { gg, stato };
     },
 
+    // Apre il Correttore overlay col testo del campo come bozza iniziale.
+    // Solo LETTURA di formDati[campo]: nessuna scrittura cross-component.
+    migliora(campo) {
+      if (typeof apriCorrettoreConTesto === 'undefined') return;
+      const titoli = { descrizione: 'Descrizione NC', note: 'Note NC' };
+      apriCorrettoreConTesto(this.formDati[campo] ?? '', titoli[campo] ?? campo);
+    },
+
     _imprese() { return this.imprese; },
+
   };
 }
 
@@ -495,9 +504,18 @@ const _TEMPLATE_NC = `
 
       <!-- Descrizione -->
       <div>
-        <label for="nc-descrizione" class="block text-xs font-medium text-slate-700 mb-1">
-          Descrizione <span class="text-red-500">*</span>
-        </label>
+        <div class="flex items-center justify-between mb-1">
+          <label for="nc-descrizione" class="block text-xs font-medium text-slate-700">
+            Descrizione <span class="text-red-500">*</span>
+          </label>
+          <button @click="migliora('descrizione')" type="button"
+                  class="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800
+                         px-2.5 py-1 rounded-lg border border-violet-200 hover:bg-violet-50
+                         transition-colors focus:outline-none focus:ring-2 focus:ring-violet-400"
+                  title="Apre il Correttore AI con questo testo — il campo resta invariato">
+            &#x2728; Migliora con l'AI
+          </button>
+        </div>
         <textarea id="nc-descrizione" rows="3"
                   x-model="formDati.descrizione"
                   placeholder="Descrivi la non conformità rilevata…"
@@ -558,7 +576,16 @@ const _TEMPLATE_NC = `
 
       <!-- Note -->
       <div>
-        <label for="nc-note" class="block text-xs font-medium text-slate-700 mb-1">Note</label>
+        <div class="flex items-center justify-between mb-1">
+          <label for="nc-note" class="block text-xs font-medium text-slate-700">Note</label>
+          <button @click="migliora('note')" type="button"
+                  class="flex items-center gap-1 text-xs text-violet-600 hover:text-violet-800
+                         px-2.5 py-1 rounded-lg border border-violet-200 hover:bg-violet-50
+                         transition-colors focus:outline-none focus:ring-2 focus:ring-violet-400"
+                  title="Apre il Correttore AI con questo testo — il campo resta invariato">
+            &#x2728; Migliora con l'AI
+          </button>
+        </div>
         <textarea id="nc-note" rows="3"
                   x-model="formDati.note"
                   placeholder="Note aggiuntive…"

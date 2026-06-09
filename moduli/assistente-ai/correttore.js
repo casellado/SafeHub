@@ -354,7 +354,7 @@ const _TEMPLATE_CORRETTORE = `
                 class="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1
                        px-3 py-2 rounded-lg border border-blue-200 hover:bg-blue-50
                        transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400">
-          📋 Copia
+          📋 Copia il testo riscritto
         </button>
         <button x-show="fase === 'fatto'" @click="torna()"
                 class="text-sm text-slate-500 hover:text-slate-700 px-4 py-2 rounded-lg
