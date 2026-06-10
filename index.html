@@ -84,6 +84,7 @@
   <script src="moduli/cestino/cestino.js"></script>
   <script src="moduli/cruscotto/cruscotto.js"></script>
   <script src="moduli/assistente-ai/correttore.js"></script>
+  <script src="moduli/assistente-ai/consulente.js"></script>
 </head>
 
 <body x-data x-cloak>
@@ -453,6 +454,10 @@
         <button class="nav-voce" @click="apriCorrettoreLibero()"
                 aria-label="Apri il Correttore AI">
           <span aria-hidden="true">✍</span> Correttore
+        </button>
+        <button class="nav-voce" @click="navigaA('consulente-normativo')"
+                aria-label="Apri il Consulente normativo">
+          <span aria-hidden="true">💬</span> Consulente normativo
         </button>
 
         </div><!-- /nav-items -->

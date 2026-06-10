@@ -40,7 +40,12 @@ const AI_RAG = (() => {
     // lavori in quota
     'quota':                 ['lavori_in_quota'],
     'caduta':                ['lavori_in_quota', 'dpi'],
+    'cadute':                ['lavori_in_quota', 'dpi'],
+    "dall'alto":             ['lavori_in_quota'],
+    'lavori in quota':       ['lavori_in_quota'],
     'anticaduta':            ['lavori_in_quota', 'dpi'],
+    'dpi anticaduta':        ['lavori_in_quota', 'dpi'],
+    'protezione collettiva': ['lavori_in_quota'],
     'parapetto':             ['lavori_in_quota'],
     'parapetti':             ['lavori_in_quota'],
     'rete di sicurezza':     ['lavori_in_quota'],
