@@ -86,6 +86,9 @@
   <script src="moduli/assistente-ai/correttore.js"></script>
   <script src="moduli/assistente-ai/consulente.js"></script>
   <script src="moduli/numeri-utili/numeri-utili.js"></script>
+  <!-- marked v4: renderer Markdown→HTML usato dal solo modulo Manuale. -->
+  <script src="vendor/marked.min.js"></script>
+  <script src="moduli/manuale/manuale.js"></script>
 </head>
 
 <body x-data x-cloak>
@@ -454,6 +457,11 @@
                 :aria-current="$store.app.moduloAttivo === 'numeri-utili' ? 'page' : null">
           <span aria-hidden="true">☎️</span> Numeri Utili
         </button>
+        <button class="nav-voce" @click="navigaA('manuale')"
+                :class="{'attiva': $store.app.moduloAttivo === 'manuale'}"
+                :aria-current="$store.app.moduloAttivo === 'manuale' ? 'page' : null">
+          <span aria-hidden="true">📖</span> Manuale
+        </button>
 
         <!-- ASSISTENTE AI -->
         <div class="nav-sezione" role="presentation">Assistente AI</div>
@@ -470,7 +478,7 @@
 
         <!-- Firma autore — flex-shrink:0, sempre visibile in fondo alla sidebar -->
         <div class="shell-firma" role="contentinfo">
-          by — Geom. Dogano Casella
+          © 2026 Geom. Dogano Casella
         </div>
 
       </nav>
