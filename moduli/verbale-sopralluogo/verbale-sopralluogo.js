@@ -74,21 +74,35 @@ function _normalizzaHtmlSafeCant(html) {
     .replace(/<\/ol>/gi,       '');
 }
 
-// ── Ridimensionamento firme blocco (non in tabella) ───────────────────────────
-// FIX 1: le firme della tabella presenti sono già vincolate dalla colonna (OK).
-// Le firme di blocco (redattore e simili) sono <img> fuori da <td>: M6 le inietta
-// alla dimensione nativa del canvas (es. 700×240px iPad retina → ~18cm OOXML).
-// Le riscaliamo a 210×80px (stessa finestra di _scalafirma) prima di passare a M6.
+// ── Ridimensionamento firme nel corpo prima di passare a M6 ──────────────────
+// M6 dimensiona ogni <img> dalle dimensioni native del PNG (naturalWidth/Height) e
+// usa come maxW la larghezza dell'intera pagina — non conosce la larghezza colonna.
+// Firme iPad retina (~700×240px) risulterebbero ~9–10cm nel DOCX: sforano sempre.
+// Normalizziamo qui, prima di M6, separando i due contesti:
+//   • fuori tabella (firma redattore, CSE fuori cella) → 210×80px
+//   • dentro cella <td>/<th> (firme presenti, colonna ~4,7cm su Letter) → 180×70px
 async function _scalafirmeCorpo(html) {
   if (!html) return html;
   const doc  = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
-  const imgs = [...doc.querySelectorAll('img')].filter(img => !img.closest('td, th'));
-  await Promise.all(imgs.map(async img => {
+
+  // Firme fuori tabella: redattore e simili — 210×80px (invariato).
+  const imgsFuori = [...doc.querySelectorAll('img')].filter(img => !img.closest('td, th'));
+  await Promise.all(imgsFuori.map(async img => {
     const src = img.getAttribute('src') || '';
     if (!src.startsWith('data:image/')) return;
     const scaled = await _scalafirma(src, 210, 80);
     if (scaled) img.setAttribute('src', scaled);
   }));
+
+  // Firme dei presenti dentro celle: 180×70px → resa DOCX ~1,9cm, sta nella colonna.
+  const imgsInCella = [...doc.querySelectorAll('td img, th img')];
+  await Promise.all(imgsInCella.map(async img => {
+    const src = img.getAttribute('src') || '';
+    if (!src.startsWith('data:image/')) return;
+    const scaled = await _scalafirma(src, 180, 70);
+    if (scaled) img.setAttribute('src', scaled);
+  }));
+
   return doc.body.innerHTML;
 }
 

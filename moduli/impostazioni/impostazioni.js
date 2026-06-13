@@ -70,6 +70,11 @@ function Impostazioni() {
     // Avvisi inline per le soglie critiche (guardrail)
     avvisiSoglie: {},
 
+    // ---- Cambio cartella OneDrive (tab Preferenze) ----
+    mostraConfermaCartella: false,
+    cambiandoCartella:      false,
+    _cleanupTrapFocus:      null,
+
     // Espone le costanti al template Alpine (che non può accedere a variabili di modulo)
     etichetteMod()    { return ETICHETTE_MODULI; },
     etichetteSoglie() { return ETICHETTE_SOGLIE; },
@@ -227,6 +232,38 @@ function Impostazioni() {
 
     async salvaPreferenze() {
       await this.eseguiSalvataggio({ preferenze_app: { ...this.preferenze } }, 'Preferenze');
+    },
+
+    // ---- Cambio cartella OneDrive ----
+
+    apriConfermaCartella() {
+      this.mostraConfermaCartella = true;
+      Alpine.nextTick(() => {
+        const dlg = this.$refs.dialogCambiaCartella;
+        if (!dlg) return;
+        this._cleanupTrapFocus = A11Y.trapFocus(dlg);
+        const primo = dlg.querySelector('button');
+        if (primo) A11Y.spostaFocus(primo);
+      });
+    },
+
+    async confermaCambioCartella() {
+      if (this.cambiandoCartella) return;
+      this.cambiandoCartella = true;
+      try {
+        const ok = await window.cambiaCartellaOneDrive();
+        if (ok) this.annullaCambioCartella(); // chiude dialog e rilascia trapFocus
+      } finally {
+        this.cambiandoCartella = false;
+      }
+    },
+
+    annullaCambioCartella() {
+      this.mostraConfermaCartella = false;
+      if (this._cleanupTrapFocus) {
+        this._cleanupTrapFocus();
+        this._cleanupTrapFocus = null;
+      }
     },
 
     // ---- Assistente AI (tab ai) ----
@@ -673,6 +710,66 @@ const _TEMPLATE_IMPOSTAZIONI = `
   <!-- ── PANEL 6: Preferenze app ───────────────────────────── -->
   <section role="tabpanel" id="panel-preferenze" aria-labelledby="tab-preferenze"
            x-show="tabAttiva === 'preferenze'" class="space-y-4">
+
+    <!-- ── Cartella OneDrive agganciata ──────────────────── -->
+    <div class="border border-slate-200 rounded-xl p-4 space-y-3">
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <p class="text-sm font-medium text-slate-700">Cartella OneDrive agganciata</p>
+          <p class="text-xs text-slate-500 mt-0.5 font-mono truncate"
+             x-text="$store.sync.nomeCartella ?? '—'"></p>
+        </div>
+        <button @click="apriConfermaCartella()"
+                x-show="!mostraConfermaCartella"
+                class="shrink-0 text-sm text-slate-600 hover:text-slate-800 px-3 py-1.5
+                       border border-slate-300 rounded-lg transition-colors
+                       focus:outline-none focus:ring-2 focus:ring-slate-400">
+          Cambia cartella…
+        </button>
+      </div>
+      <p class="text-xs text-slate-400">
+        Cartella radice di tutti i cantieri su OneDrive. Modificarla è necessario
+        se si lavora con un CSE diverso la cui cartella condivisa è distinta.
+      </p>
+
+      <!-- ── Pannello di conferma ─────────────────────────── -->
+      <div x-show="mostraConfermaCartella"
+           x-ref="dialogCambiaCartella"
+           role="dialog"
+           aria-modal="true"
+           aria-label="Conferma cambio cartella OneDrive"
+           class="border border-amber-200 bg-amber-50 rounded-xl p-4 space-y-4">
+        <div>
+          <p class="font-semibold text-slate-800 mb-1">Cambiare cartella OneDrive?</p>
+          <p class="text-sm text-slate-600">
+            Cartella corrente:
+            <code class="bg-slate-100 px-1 rounded text-xs"
+                  x-text="$store.sync.nomeCartella ?? '—'"></code>
+          </p>
+          <p class="text-sm text-amber-700 mt-2">
+            Il cantiere selezionato verrà deselezionato e la lista cantieri
+            sarà ricostruita dalla nuova cartella.
+          </p>
+        </div>
+        <div class="flex gap-3">
+          <button @click="annullaCambioCartella()"
+                  :disabled="cambiandoCartella"
+                  class="flex-1 text-sm text-slate-600 hover:text-slate-800 py-2
+                         border border-slate-300 rounded-lg transition-colors
+                         focus:outline-none focus:ring-2 focus:ring-slate-400
+                         disabled:opacity-50">
+            Annulla
+          </button>
+          <button @click="confermaCambioCartella()"
+                  :disabled="cambiandoCartella"
+                  class="flex-1 bg-amber-600 hover:bg-amber-700 disabled:opacity-50
+                         text-white font-medium py-2 rounded-lg transition-colors
+                         focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2">
+            <span x-text="cambiandoCartella ? '⏳ Cambio in corso…' : '✓ Seleziona nuova cartella'"></span>
+          </button>
+        </div>
+      </div>
+    </div>
 
     <div class="grid gap-4 sm:grid-cols-2 max-w-sm">
       <div>

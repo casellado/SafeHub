@@ -384,3 +384,60 @@ window.riscansionaCartella = async () => {
     sync.riscansionando = false;
   }
 };
+
+/**
+ * Cambia la cartella radice OneDrive (Impostazioni → Preferenze → "Cambia cartella").
+ * Necessario nel caso multi-CSE: cartelle condivise distinte per CSE diversi.
+ *
+ * Sequenza sicura (spec §2 build-prompt):
+ *  1. Picker — AbortError (utente annulla) → noop, nessuno stato toccato.
+ *  2. Deseleziona cantiere corrente (evita scritture cross-CSE sulla root vecchia).
+ *  3. Azzera ultimo_cantiere_id in IDB (non ripristinare il vecchio cantiere al boot).
+ *  4. Imposta nuova root attiva in memoria (agganciaCartella ha già scritto in IDB).
+ *  5. Rigenera indice sulla nuova root (idbSvuota cantieri_cache internamente).
+ *  6. Aggiorna lista cantieri e indicatore cartella in header.
+ *  7. Announce a11y + toast.
+ *
+ * @returns {Promise<boolean>} true se il cambio è avvenuto, false se annullato o in errore.
+ */
+window.cambiaCartellaOneDrive = async () => {
+  let nuovoHandle = null;
+  try {
+    // Passo 1 — picker; AbortError = utente ha annullato → silenzioso
+    nuovoHandle = await FILESYSTEM.agganciaCartella();
+  } catch (err) {
+    if (err.name === 'AbortError') return false;
+    ERRORI.gestisciErrore('impostazioni/cambia-cartella/picker', err);
+    return false;
+  }
+
+  try {
+    // Passo 2 — deseleziona cantiere (evita scrittura cross-CSE)
+    Alpine.store('cantiere').deseleziona();
+
+    // Passo 3 — rimuove ultimo_cantiere_id (nessun ripristino al prossimo boot)
+    await IDB.idbPut('impostazioni_archivio', { key: 'ultimo_cantiere_id', value: null });
+
+    // Passo 4 — nuova root attiva in memoria (agganciaCartella ha già scritto in IDB)
+    FILESYSTEM.setHandleAttivo(nuovoHandle);
+
+    // Passo 5 — rigenera indice (svuota cantieri_cache + scansiona nuova root)
+    await IDB.rigeneraIndice(nuovoHandle);
+
+    // Passo 6 — aggiorna lista cantieri e indicatore cartella nell'header
+    await Alpine.store('cantieri').ricarica();
+    Alpine.store('sync').nomeCartella = nuovoHandle.name;
+
+    // Passo 7 — feedback
+    A11Y.annuncia(`Collegato alla cartella «${nuovoHandle.name}». Cantieri aggiornati.`);
+    NOTIFICHE.successo('Cartella aggiornata', `Connesso a «${nuovoHandle.name}».`);
+
+    return true;
+  } catch (err) {
+    // Errore post-picker: agganciaCartella ha già salvato il nuovo handle in IDB.
+    // Al prossimo boot SafeHub partirà dalla nuova root; fino ad allora suggerire riavvio.
+    ERRORI.gestisciErrore('impostazioni/cambia-cartella', err);
+    NOTIFICHE.attenzione('Cambio cartella incompleto', 'Riavvia SafeHub per completare il collegamento.');
+    return false;
+  }
+};

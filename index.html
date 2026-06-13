@@ -85,6 +85,7 @@
   <script src="moduli/cruscotto/cruscotto.js"></script>
   <script src="moduli/assistente-ai/correttore.js"></script>
   <script src="moduli/assistente-ai/consulente.js"></script>
+  <script src="moduli/numeri-utili/numeri-utili.js"></script>
 </head>
 
 <body x-data x-cloak>
@@ -447,6 +448,11 @@
                 :class="{'attiva': $store.app.moduloAttivo === 'cestino'}"
                 :aria-current="$store.app.moduloAttivo === 'cestino' ? 'page' : null">
           <span aria-hidden="true">🗑</span> Cestino
+        </button>
+        <button class="nav-voce" @click="navigaA('numeri-utili')"
+                :class="{'attiva': $store.app.moduloAttivo === 'numeri-utili'}"
+                :aria-current="$store.app.moduloAttivo === 'numeri-utili' ? 'page' : null">
+          <span aria-hidden="true">☎️</span> Numeri Utili
         </button>
 
         <!-- ASSISTENTE AI -->

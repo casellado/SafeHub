@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION ogni volta che cambiano asset locali cachati (CLAUDE.md §Git).
  */
 
-const CACHE_VERSION = 'safehub-archivio-v28';  // bump: verbale-sopralluogo (Flusso A)
+const CACHE_VERSION = 'safehub-archivio-v31';  // bump: Numeri Utili — emoji ☎️ al posto del SVG
 
 const ASSET_LOCALI = [
   './',
@@ -46,6 +46,7 @@ const ASSET_LOCALI = [
   './moduli/verifica-pos/verifica-pos.js',
   './moduli/verifica-itp/verifica-itp.js',
   './moduli/verbale-sopralluogo/verbale-sopralluogo.js',
+  './moduli/numeri-utili/numeri-utili.js',
   './templates/template.docx',
   './assets/icon-192.png',
   './assets/icon-512.png',
